@@ -24,6 +24,7 @@
                                             <th>{{ __('Name') }}</th>
                                             <th>{{ __('Minimum Investment') }}</th>
                                             <th>{{ __('Bonus') }}</th>
+                                            <th>{{ __('Commission Level') }}</th>
                                             <th>{{ __('Users') }}</th>
                                             <th>{{ __('Action') }}</th>
                                         </tr>
@@ -35,6 +36,7 @@
                                                 <td>{{ $designation->name }}</td>
                                                 <td>${{ number_format($designation->minimum_investment, 2) }}</td>
                                                 <td>${{ number_format($designation->bonus, 2) }}</td>
+                                                <td>{{ $designation->commission_level }}</td>
                                                 <td>
                                                     <a href="{{ route('admin.designations.users', $designation->id) }}" class="btn btn-info">
                                                         View Users
@@ -86,6 +88,10 @@
                             <label for="bonus">{{ __('Bonus') }}</label>
                             <input type="number" name="bonus" id="bonus" class="form-control" step="0.01" required>
                         </div>
+                        <div class="form-group">
+                            <label for="commission_level">{{ __('Commission Level') }}</label>
+                            <input type="number" name="commission_level" id="commission_level" class="form-control" required>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary">Create</button>
@@ -122,6 +128,10 @@
                             <label for="edit_bonus">{{ __('Bonus') }}</label>
                             <input type="number" name="bonus" id="edit_bonus" class="form-control" step="0.01" required>
                         </div>
+                        <div class="form-group">
+                            <label for="edit_commission_level">{{ __('Commission Level') }}</label>
+                            <input type="number" name="commission_level" id="edit_commission_level" class="form-control" required>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary">Update</button>
@@ -146,6 +156,7 @@
             modal.find('#edit_name').val(data.name);
             modal.find('#edit_minimum_investment').val(data.minimum_investment);
             modal.find('#edit_bonus').val(data.bonus);
+            modal.find('#edit_commission_level').val(data.commission_level);
 
             modal.modal('show');
         });

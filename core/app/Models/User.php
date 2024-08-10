@@ -126,45 +126,33 @@ class User extends Authenticatable
     {
         $totalDeposit = $this->calculateTotalDeposit();
         $currentDesignation = $this->currentDesignation()->first();
-          $designation = Designation::where('minimum_investment', '<=', $totalDeposit)
+        $designation = Designation::where('minimum_investment', '<=', $totalDeposit)
                                   ->orderBy('minimum_investment', 'desc')
                                   ->first();
-          $bonusAmount = floatval($designation->bonus);
-
 
         if ($designation && (!$currentDesignation || $currentDesignation->designation_id != $designation->id)) {
-            // Upgrade designation
             UserDesignation::updateOrCreate(
                 ['user_id' => $this->id],
-                ['designation_id' => $designation->id]
+                ['designation_id' => $designation->id, 'commission_level' => $designation->commission_level]
             );
 
-
-
-            // Check if the user has already received the bonus for this designation
-            $bonusReceived = Transaction::where('user_id', $this->id)
-                                        ->where('type', 'bonus')
-                                        ->where('details', 'like', "%Designation ID: {$designation->id}%")
-                                        ->exists();
-
-            if (!$bonusReceived && $bonusAmount > 0) {
-
-                // Create a new transaction for the bonus
+            // Check if user already received the bonus for this designation
+            if (!Transaction::where('user_id', $this->id)
+                             ->where('details', 'Bonus for ' . $designation->name)
+                             ->exists()) {
                 Transaction::create([
-                    'trx' => uniqid(),  // Generate a unique transaction ID
-                    'gateway_transaction' => null,
+                    'trx' => 'unique_transaction_id',
                     'user_id' => $this->id,
-                    'gateway_id' => 0,  // Assuming no gateway is involved in bonus
-                    'amount' => $bonusAmount,
-                    'currency' => 'USD',  // Adjust currency as needed
-                    'charge' => 0,  // Assuming no charge for bonus
-                    'details' => "Designation ID: {$designation->id} Bonus",
-                    'type' => 'bonus',
-                    'payment_status' => 1,  // Assuming bonus payment is successful
+                    'amount' => $designation->bonus,
+                    'currency' => 'USD',
+                    'details' => 'Bonus for ' . $designation->name,
+                    'type' => 'credit',
+                    'payment_status' => 1,
                 ]);
             }
         }
     }
+
 
 
 

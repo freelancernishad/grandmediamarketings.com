@@ -12,6 +12,7 @@ class UserDesignation extends Model
     protected $fillable = [
         'user_id',
         'designation_id',
+        'commission_level',
     ];
 
     public function user()

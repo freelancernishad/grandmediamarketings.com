@@ -13,6 +13,7 @@ class Designation extends Model
         'name',
         'minimum_investment',
         'bonus',
+        'commission_level',
     ];
 
     public function userDesignations()
