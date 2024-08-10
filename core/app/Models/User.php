@@ -143,6 +143,7 @@ class User extends Authenticatable
                 Transaction::create([
                     'trx' => 'unique_transaction_id',
                     'user_id' => $this->id,
+                    'gateway_id' => 0,
                     'amount' => $designation->bonus,
                     'currency' => 'USD',
                     'details' => 'Bonus for ' . $designation->name,
