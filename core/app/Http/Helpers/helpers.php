@@ -38,10 +38,10 @@ function fileUpload($file, $location)
 
     $filename = $file->getClientOriginalName();
 
-   
+
         $file->move($location, $filename);
         $location = $location . '/' . $filename;
-    
+
 
     return $location;
 }
@@ -300,41 +300,65 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
 
     $user_id = $id;
 
-    $level = Refferal::where('status', 1)->where('type', $refferal_type)->where('plan_id', $plan)->first();
+    // Fetch the relevant referral level
+    $level = Refferal::where('status', 1)
+        ->where('type', $refferal_type)
+        ->where('plan_id', $plan)
+        ->first();
 
-    $counter = $level ? count($level->level) : 0;
+    // Check if the level exists
+    if (!$level) {
+        return;
+    }
 
+    // Get the number of levels available
+    $counter = count($level->level);
+
+    // Get the general settings
     $general = GeneralSetting::first();
 
+    // Loop through the levels
     for ($i = 0; $i < $counter; $i++) {
 
+        // Check if the user exists
         if ($user) {
 
-            $comission = ($level->commision[$i] * $amount) / 100;
-            $user->balance = $user->balance + $comission;
+            // Check the user's designation and commission level
+            $designation = $user->designation;
 
-            $user->save();
+            if ($designation && $i < $designation->commission_level) {
 
-            $a = RefferedCommission::create([
-                'reffered_by' => $user->id,
-                'reffered_to' => $id,
-                'commission_from' => $user_id,
-                'amount' => $comission,
-                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                // Calculate the commission based on the level
+                $comission = ($level->commision[$i] * $amount) / 100;
 
-            ]);
+                // Add the commission to the user's balance
+                $user->balance = $user->balance + $comission;
+                $user->save();
 
-            sendMail('Commission', [
-                'refer_user' => $user->username,
-                'amount' => $comission,
-                'currency' => $general->site_currency,
-            ], $user);
+                // Create a record for the referred commission
+                RefferedCommission::create([
+                    'reffered_by' => $user->id,
+                    'reffered_to' => $id,
+                    'commission_from' => $user_id,
+                    'amount' => $comission,
+                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                ]);
 
+                // Send a notification email
+                sendMail('Commission', [
+                    'refer_user' => $user->username,
+                    'amount' => $comission,
+                    'currency' => $general->site_currency,
+                ], $user);
+            }
+
+            // Move to the next user in the referral chain
             $id = $user->id;
             $user = $user->refferedBy;
         }
     }
 }
+
 
 
 function advertisements($size)
@@ -428,33 +452,33 @@ function currentPlan($user)
 function numberToWord($num = '')
 {
     $num    = ( string ) ( ( int ) $num );
-    
+
     if( ( int ) ( $num ) && ctype_digit( $num ) )
     {
         $words  = array( );
-         
+
         $num    = str_replace( array( ',' , ' ' ) , '' , trim( $num ) );
-         
+
         $list1  = array('','one','two','three','four','five','six','seven',
             'eight','nine','ten','eleven','twelve','thirteen','fourteen',
             'fifteen','sixteen','seventeen','eighteen','nineteen');
-         
+
         $list2  = array('','ten','twenty','thirty','forty','fifty','sixty',
             'seventy','eighty','ninety','hundred');
-         
+
         $list3  = array('','thousand','million','billion','trillion',
             'quadrillion','quintillion','sextillion','septillion',
             'octillion','nonillion','decillion','undecillion',
             'duodecillion','tredecillion','quattuordecillion',
             'quindecillion','sexdecillion','septendecillion',
             'octodecillion','novemdecillion','vigintillion');
-         
+
         $num_length = strlen( $num );
         $levels = ( int ) ( ( $num_length + 2 ) / 3 );
         $max_length = $levels * 3;
         $num    = substr( '00'.$num , -$max_length );
         $num_levels = str_split( $num , 3 );
-         
+
         foreach( $num_levels as $num_part )
         {
             $levels--;
@@ -462,20 +486,20 @@ function numberToWord($num = '')
             $hundreds   = ( $hundreds ? ' ' . $list1[$hundreds] . ' Hundred' . ( $hundreds == 1 ? '' : 's' ) . ' ' : '' );
             $tens       = ( int ) ( $num_part % 100 );
             $singles    = '';
-             
+
             if( $tens < 20 ) { $tens = ( $tens ? ' ' . $list1[$tens] . ' ' : '' ); } else { $tens = ( int ) ( $tens / 10 ); $tens = ' ' . $list2[$tens] . ' '; $singles = ( int ) ( $num_part % 10 ); $singles = ' ' . $list1[$singles] . ' '; } $words[] = $hundreds . $tens . $singles . ( ( $levels && ( int ) ( $num_part ) ) ? ' ' . $list3[$levels] . ' ' : '' ); } $commas = count( $words ); if( $commas > 1 )
         {
             $commas = $commas - 1;
         }
-         
+
         $words  = implode( ', ' , $words );
-         
+
         $words  = trim( str_replace( ' ,' , ',' , ucwords( $words ) )  , ', ' );
         if( $commas )
         {
             $words  = str_replace( ',' , ' and' , $words );
         }
-         
+
         return $words;
     }
     else if( ! ( ( int ) $num ) )
