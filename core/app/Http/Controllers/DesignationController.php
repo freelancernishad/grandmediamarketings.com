@@ -27,6 +27,7 @@ class DesignationController extends Controller
             'name' => 'required|string|max:255',
             'minimum_investment' => 'required|numeric|min:0', // Updated column name
             'bonus' => 'required|numeric|min:0', // Updated column name
+            'commission_level' => 'required|numeric|min:1', // Updated column name
 
         ]);
 
@@ -34,6 +35,7 @@ class DesignationController extends Controller
             'name' => $request->name,
             'minimum_investment' => $request->minimum_investment, // Updated column name
             'bonus' => $request->bonus, // Updated column name
+            'commission_level' => $request->commission_level, // Updated column name
 
         ]);
 

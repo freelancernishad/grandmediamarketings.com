@@ -234,7 +234,7 @@
                                 <input class="btn btn-primary" type="text"  name=level[] value="${data.level[i]}" readonly>
                             </div>
                                 <input type="number" required class="form-control" name=commision[]
-                                    placeholder="Commision" value="${data.commision[i]}">
+                                    placeholder="Commision" step="0.01" min="0" value="${data.commision[i]}">
 
                                 <div class="input-group-append">
                                     <button class="btn btn-primary text-light no-drop" type="button"
@@ -283,7 +283,7 @@
                                 <input class="btn btn-primary" type="text"  name=level[] value="level ${i+1}" readonly>
                             </div>
                                 <input type="number" required class="form-control" name=commision[]
-                                    placeholder="Commision">
+                                    placeholder="Commision" step="0.01" min="0">
 
                                 <div class="input-group-append">
                                     <button class="btn btn-primary text-light no-drop" type="button"
@@ -329,7 +329,7 @@
                 <input class="btn btn-primary" type="text"  name=level[] value="level ${i+1}" readonly>
             </div>
                 <input type="number" required class="form-control" name=commision[]
-                    placeholder="Commision">
+                    placeholder="Commision" step="0.01" min="0">
 
                 <div class="input-group-append">
                     <button class="btn btn-primary text-light no-drop" type="button"
@@ -384,7 +384,7 @@
                                                 <input class="btn btn-success" type="text"  name="level[]"  value="level ${i+1}" readonly>
                                             </div>
                                             <input type="number" name=commision[] class="form-control"
-                                                placeholder="Commision" min="0" required>
+                                                placeholder="Commision" step="0.01" min="0" required>
 
                                             <div class="input-group-append">
                                                 <button class="btn btn-success text-light no-drop" type="button"
