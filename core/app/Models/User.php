@@ -18,9 +18,7 @@ class User extends Authenticatable
      *
      * @var string[]
      */
-    protected $guarded = [
-
-    ];
+    protected $guarded = [];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -40,13 +38,13 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'address' => 'object',
-        'last_login' =>'datetime',
-        'kyc_infos' => 'array'
+        'last_login' => 'datetime',
+        'kyc_infos' => 'array',
     ];
 
     public function getFullNameAttribute($value)
     {
-        return $this->fname.' '.$this->lname;
+        return $this->fname . ' ' . $this->lname;
     }
 
     public function loginSecurity()
@@ -56,42 +54,42 @@ class User extends Authenticatable
 
     public function payments()
     {
-        return $this->hasMany(Payment::class,'user_id');
+        return $this->hasMany(Payment::class, 'user_id');
     }
 
     public function deposits()
     {
-        return $this->hasMany(Deposit::class,'user_id');
+        return $this->hasMany(Deposit::class, 'user_id');
     }
 
     public function refferals()
     {
-        return $this->hasMany(User::class,'reffered_by' );
+        return $this->hasMany(User::class, 'reffered_by');
     }
 
     public function refferedBy()
     {
-        return $this->belongsTo(User::class,'reffered_by');
+        return $this->belongsTo(User::class, 'reffered_by');
     }
 
     public function reffer()
     {
-        return $this->hasMany(User::class,'reffered_by');
+        return $this->hasMany(User::class, 'reffered_by');
     }
 
     public function interest()
     {
-        return $this->hasMany(UserInterest::class,'user_id');
+        return $this->hasMany(UserInterest::class, 'user_id');
     }
 
     public function commissions()
     {
-        return $this->hasMany(RefferedCommission::class,'reffered_by');
+        return $this->hasMany(RefferedCommission::class, 'reffered_by');
     }
 
     public function tickets()
     {
-        return $this->hasMany(Ticket::class,'user_id');
+        return $this->hasMany(Ticket::class, 'user_id');
     }
 
     public function getEmailAttribute($value)
@@ -99,49 +97,75 @@ class User extends Authenticatable
         return env('DEMO') ? '[Protected Email For Demo]' : $value;
     }
 
-     public function getPhoneAttribute($value)
+    public function getPhoneAttribute($value)
     {
         return env('DEMO') ? '[Protected Phone for Demo]' : $value;
     }
-
 
     public function currentDesignation()
     {
         return $this->hasOne(UserDesignation::class);
     }
 
+    /**
+     * Calculate the user's own total deposit.
+     *
+     * @return float
+     */
     public function calculateTotalDeposit()
     {
-        // Calculate the total deposit from the user
-        $ownDeposit = Payment::where('user_id', $this->id)->sum('final_amount');
-
-        // Calculate the total deposit from the user's referrals
-        $referralDeposit = Payment::whereIn('user_id', $this->refferals->pluck('id'))->sum('final_amount');
-
-        // Return the combined total deposit
-        return $ownDeposit + $referralDeposit;
+        return Payment::where('user_id', $this->id)
+            ->where('status', 'approved')
+            ->sum('final_amount');
     }
 
+    /**
+     * Calculate the total deposit of the user's team (referrals).
+     *
+     * @return float
+     */
+    public function calculateTeamDeposit()
+    {
+        return Payment::whereIn('user_id', $this->refferals->pluck('id'))
+            ->where('status', 'approved')
+            ->sum('final_amount');
+    }
+
+    /**
+     * Check if the user is eligible for a designation upgrade based on total deposits
+     * and upgrade if applicable.
+     *
+     * @return void
+     */
     public function checkAndUpgradeDesignation()
     {
-        $totalDeposit = $this->calculateTotalDeposit();
+        $totalDeposit = $this->calculateTotalDeposit(); // User's own deposit
+        $teamDeposit = $this->calculateTeamDeposit(); // User's team deposit
+        $totalCombinedDeposit = $totalDeposit + $teamDeposit; // Combined deposit
         $currentDesignation = $this->currentDesignation()->first();
-        $designation = Designation::where('minimum_investment', '<=', $totalDeposit)
-                                  ->orderBy('minimum_investment', 'desc')
-                                  ->first();
+
+        // Find the highest eligible designation based on the total combined deposit
+        $designation = Designation::where('minimum_investment', '<=', $totalCombinedDeposit)
+            ->orderBy('minimum_investment', 'desc')
+            ->first();
 
         if ($designation && (!$currentDesignation || $currentDesignation->designation_id != $designation->id)) {
+            // Upgrade the user's designation
             UserDesignation::updateOrCreate(
                 ['user_id' => $this->id],
-                ['designation_id' => $designation->id, 'commission_level' => $designation->commission_level]
+                [
+                    'designation_id' => $designation->id,
+                    'commission_level' => $designation->commission_level
+                ]
             );
 
-            // Check if user already received the bonus for this designation
+            // Check if the user has already received the bonus for this designation
             if (!Transaction::where('user_id', $this->id)
-                             ->where('details', 'Bonus for ' . $designation->name)
-                             ->exists()) {
+                ->where('details', 'Bonus for ' . $designation->name)
+                ->exists()) {
+                // Create a transaction for the bonus
                 Transaction::create([
-                    'trx' => 'unique_transaction_id',
+                    'trx' => uniqid('trx_'), // Unique transaction ID
                     'user_id' => $this->id,
                     'gateway_id' => 0,
                     'amount' => $designation->bonus,
@@ -153,8 +177,4 @@ class User extends Authenticatable
             }
         }
     }
-
-
-
-
 }

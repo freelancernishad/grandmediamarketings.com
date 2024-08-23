@@ -297,68 +297,68 @@ function colorText($haystack, $needle)
 
 function refferMoney($id, $user, $refferal_type, $amount, $plan)
 {
-
     $user_id = $id;
 
-    // Fetch the relevant referral level
-    $level = Refferal::where('status', 1)
-        ->where('type', $refferal_type)
-        ->where('plan_id', $plan)
-        ->first();
+    // Get the referral level information
+    $level = Refferal::where('status', 1)->where('type', $refferal_type)->where('plan_id', $plan)->first();
 
-    // Check if the level exists
-    if (!$level) {
-        return;
-    }
+    // Count the number of levels in the referral plan
+    $counter = $level ? count($level->level) : 0;
 
-    // Get the number of levels available
-    $counter = count($level->level);
-
-    // Get the general settings
+    // General settings
     $general = GeneralSetting::first();
 
-    // Loop through the levels
     for ($i = 0; $i < $counter; $i++) {
 
-        // Check if the user exists
         if ($user) {
 
-            // Check the user's designation and commission level
-            $designation = $user->designation;
+            // Check the user's designation and the corresponding commission level
+            $userDesignation = $user->designation;
+            if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
 
-            if ($designation && $i < $designation->commission_level) {
+                // Check if the user's investment meets the minimum required for receiving the commission
+                if ($user->balance >= $userDesignation->investment_threshold) {
+                    $commission = ($level->commision[$i] * $amount) / 100;
+                    $user->balance = $user->balance + $commission;
 
-                // Calculate the commission based on the level
-                $comission = ($level->commision[$i] * $amount) / 100;
+                    $user->save();
 
-                // Add the commission to the user's balance
-                $user->balance = $user->balance + $comission;
-                $user->save();
+                    // Log the commission in RefferedCommission table
+                    $a = RefferedCommission::create([
+                        'reffered_by' => $user->id,
+                        'reffered_to' => $id,
+                        'commission_from' => $user_id,
+                        'amount' => $commission,
+                        'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                    ]);
 
-                // Create a record for the referred commission
-                RefferedCommission::create([
-                    'reffered_by' => $user->id,
-                    'reffered_to' => $id,
-                    'commission_from' => $user_id,
-                    'amount' => $comission,
-                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                    // Send notification email
+                    sendMail('Commission', [
+                        'refer_user' => $user->username,
+                        'amount' => $commission,
+                        'currency' => $general->site_currency,
+                    ], $user);
+                } else {
+                    \Log::info('User does not meet the minimum investment threshold', [
+                        'user_id' => $user->id,
+                        'required_investment' => $userDesignation->investment_threshold,
+                        'current_balance' => $user->balance
+                    ]);
+                }
+            } else {
+                \Log::info('User does not meet the commission level criteria', [
+                    'user_id' => $user->id,
+                    'required_level' => $i + 1,
+                    'current_level' => $userDesignation->commission_level ?? 0
                 ]);
-
-                // Send a notification email
-                sendMail('Commission', [
-                    'refer_user' => $user->username,
-                    'amount' => $comission,
-                    'currency' => $general->site_currency,
-                ], $user);
             }
 
-            // Move to the next user in the referral chain
+            // Move up the referral chain
             $id = $user->id;
             $user = $user->refferedBy;
         }
     }
 }
-
 
 
 function advertisements($size)
