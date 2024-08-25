@@ -308,36 +308,80 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
     // General settings
     $general = GeneralSetting::first();
 
+    // Store designation levels of referrers
+    $designationLevels = [];
+
     for ($i = 0; $i < $counter; $i++) {
 
         if ($user) {
 
             // Check the user's designation and the corresponding commission level
             $userDesignation = $user->designation;
+            $designationLevels[] = $userDesignation ? $userDesignation->commission_level : 0;
+
             if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
 
                 // Check if the user's investment meets the minimum required for receiving the commission
                 if ($user->balance >= $userDesignation->investment_threshold) {
+
+                    // Calculate the commission
                     $commission = ($level->commision[$i] * $amount) / 100;
-                    $user->balance = $user->balance + $commission;
 
-                    $user->save();
-
-                    // Log the commission in RefferedCommission table
-                    $a = RefferedCommission::create([
-                        'reffered_by' => $user->id,
-                        'reffered_to' => $id,
-                        'commission_from' => $user_id,
-                        'amount' => $commission,
-                        'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                    ]);
-
-                    // Send notification email
-                    sendMail('Commission', [
-                        'refer_user' => $user->username,
-                        'amount' => $commission,
-                        'currency' => $general->site_currency,
-                    ], $user);
+                    // Check if this is the 7th level and the user is at the 7th designation
+                    if ($i === 6 && $userDesignation->commission_level === 7) {
+                        // Check if all previous levels (1 to 7) are at the 1st designation
+                        if (count(array_unique(array_slice($designationLevels, 0, 7))) === 1 && $designationLevels[0] === 1) {
+                            // User at the 7th level gets only the 1st level commission
+                            if ($i === 0) {
+                                $user->balance += $commission;
+                                $user->save();
+                                RefferedCommission::create([
+                                    'reffered_by' => $user->id,
+                                    'reffered_to' => $id,
+                                    'commission_from' => $user_id,
+                                    'amount' => $commission,
+                                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                                ]);
+                                sendMail('Commission', [
+                                    'refer_user' => $user->username,
+                                    'amount' => $commission,
+                                    'currency' => $general->site_currency,
+                                ], $user);
+                            }
+                        } else {
+                            // Normal commission distribution for 7th level user
+                            $user->balance += $commission;
+                            $user->save();
+                            RefferedCommission::create([
+                                'reffered_by' => $user->id,
+                                'reffered_to' => $id,
+                                'commission_from' => $user_id,
+                                'amount' => $commission,
+                                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                            ]);
+                            sendMail('Commission', [
+                                'refer_user' => $user->username,
+                                'amount' => $commission,
+                                'currency' => $general->site_currency,
+                            ], $user);
+                        }
+                    } else {
+                        // Normal commission distribution for other levels
+                        $user->balance += $commission;
+                        $user->save();
+                        RefferedCommission::create([
+                            'reffered_by' => $user->id,
+                            'reffered_to' => $id,
+                            'commission_from' => $user_id,
+                            'amount' => $commission,
+                            'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                        ]);
+                        sendMail('Commission', [
+                            'refer_user' => $user->username,
+                            'amount' => $commission,
+                            'currency' => $general->site_currency,
+                        ], $user);
+                    }
                 } else {
                     \Log::info('User does not meet the minimum investment threshold', [
                         'user_id' => $user->id,
@@ -359,6 +403,7 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         }
     }
 }
+
 
 
 function advertisements($size)
