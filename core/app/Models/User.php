@@ -195,27 +195,30 @@ class User extends Authenticatable
 
     protected function promoteReferredByUser()
     {
-        // Check if the current user has a referrer
+        // Initialize the current referrer to be the user who referred the current user
         $referredBy = $this->refferedBy;
-
-        if ($referredBy) {
-            // Calculate the referrer's total and team deposits
+    
+        // Traverse up the referral chain until you find a referrer who has invested
+        while ($referredBy) {
+            // Calculate the referrer's total deposit
             $referrerTotalDeposit = $referredBy->calculateTotalDeposit();
-            $referrerTeamDeposit = $referredBy->calculateEntireDownlineDeposit();
-
-            // Only proceed if the referrer has made an investment
+    
+            // If the referrer has made an investment, process the promotion
             if ($referrerTotalDeposit > 0) {
+                // Calculate the referrer's team deposit, including the entire downline
+                $referrerTeamDeposit = $this->calculateDepositFromEntireDownline($referredBy);
+    
                 // Calculate the referrer's combined deposit
                 $referrerCombinedDeposit = $referrerTotalDeposit + $referrerTeamDeposit;
-
+    
                 // Fetch the referrer's current designation
                 $currentReferrerDesignation = $referredBy->currentDesignation()->first();
-
+    
                 // Find the highest eligible designation for the referrer based on the combined deposit
                 $referrerDesignation = Designation::where('minimum_investment', '<=', $referrerCombinedDeposit)
                     ->orderBy('minimum_investment', 'desc')
                     ->first();
-
+    
                 if ($referrerDesignation && (!$currentReferrerDesignation || $currentReferrerDesignation->designation_id != $referrerDesignation->id)) {
                     // Upgrade the referrer's designation
                     UserDesignation::updateOrCreate(
@@ -225,12 +228,12 @@ class User extends Authenticatable
                             'commission_level' => $referrerDesignation->commission_level
                         ]
                     );
-
+    
                     // Check if the referrer has already received the bonus for this designation
                     if (!Transaction::where('user_id', $referredBy->id)
                         ->where('details', 'Bonus for ' . $referrerDesignation->id)
                         ->exists()) {
-
+    
                         // Create a transaction for the bonus
                         $transaction = Transaction::create([
                             'trx' => uniqid('trx_'), // Unique transaction ID
@@ -243,24 +246,37 @@ class User extends Authenticatable
                             'type' => 'credit',
                             'payment_status' => 1,
                         ]);
-
+    
                         // Update the referrer's balance
                         $referredBy->increment('balance', $transaction->amount);
                     }
                 }
+    
+                // Break out of the loop once an eligible referrer has been found and promoted
+                break;
             }
+    
+            // Move to the next referrer up the chain if the current referrer has not invested
+            $referredBy = $referredBy->refferedBy;
         }
     }
-
-    protected function calculateEntireDownlineDeposit()
+    
+    /**
+     * Calculate the total deposit from the entire downline of the given user.
+     * This includes investments made by users referred directly and indirectly.
+     *
+     * @param User $user
+     * @return float
+     */
+    protected function calculateDepositFromEntireDownline(User $user)
     {
         $totalDeposit = 0;
-
-        foreach ($this->refferals as $referral) {
+    
+        foreach ($user->refferals as $referral) {
             $totalDeposit += $referral->calculateTotalDeposit();
-            $totalDeposit += $referral->calculateEntireDownlineDeposit();
+            $totalDeposit += $this->calculateDepositFromEntireDownline($referral);
         }
-
+    
         return $totalDeposit;
     }
 
