@@ -39,7 +39,7 @@
                                                 <td>{{ $designation->commission_level }}</td>
                                                 <td>
                                                     <a href="{{ route('admin.designations.users', $designation->id) }}" class="btn btn-info">
-                                                        View Users ({{ $designation->user_designations_count }})
+                                                        View Users ( {{ $designation->user_designations_count }} )
                                                     </a>
                                                 </td>
                                                 <td>

@@ -139,16 +139,23 @@ class User extends Authenticatable
      */
     public function checkAndUpgradeDesignation()
     {
-        $totalDeposit = $this->calculateTotalDeposit(); // User's own deposit
-        $teamDeposit = $this->calculateTeamDeposit(); // User's team deposit
-        $totalCombinedDeposit = $totalDeposit + $teamDeposit; // Combined deposit
+        // User's own deposit
+        $totalOwnDeposit = $this->calculateTotalDeposit(); 
+        
+        // User's team deposit, including deposits from referred users
+        $teamDeposit = $this->calculateTeamDeposit(); 
+        
+        // Combined deposit (user's deposit + team deposit)
+        $totalCombinedDeposit = $totalOwnDeposit + $teamDeposit; 
+        
+        // Fetch the user's current designation
         $currentDesignation = $this->currentDesignation()->first();
-
+    
         // Find the highest eligible designation based on the total combined deposit
         $designation = Designation::where('minimum_investment', '<=', $totalCombinedDeposit)
             ->orderBy('minimum_investment', 'desc')
             ->first();
-
+    
         if ($designation && (!$currentDesignation || $currentDesignation->designation_id != $designation->id)) {
             // Upgrade the user's designation
             UserDesignation::updateOrCreate(
@@ -158,13 +165,15 @@ class User extends Authenticatable
                     'commission_level' => $designation->commission_level
                 ]
             );
-
-           
-   
+    
+            // Promote the user who referred the current user (if applicable)
+            $this->promoteReferredByUser();
+    
             // Check if the user has already received the bonus for this designation
             if (!Transaction::where('user_id', $this->id)
                 ->where('details', 'Bonus for ' . $designation->id)
                 ->exists()) {
+                
                 // Create a transaction for the bonus
                 $transaction = Transaction::create([
                     'trx' => uniqid('trx_'), // Unique transaction ID
@@ -177,12 +186,70 @@ class User extends Authenticatable
                     'type' => 'credit',
                     'payment_status' => 1,
                 ]);
-
-
-             // Update the user's balance
-            $this->increment('balance', $transaction->amount);
-
+    
+                // Update the user's balance
+                $this->increment('balance', $transaction->amount);
             }
         }
     }
+    
+    protected function promoteReferredByUser()
+    {
+        // Check if the current user has a referrer
+        $referredBy = $this->refferedBy;
+    
+        if ($referredBy) {
+            // Calculate the referrer's total and team deposits
+            $referrerTotalDeposit = $referredBy->calculateTotalDeposit();
+            $referrerTeamDeposit = $referredBy->calculateTeamDeposit();
+    
+            // Only proceed if the referrer has made an investment
+            if ($referrerTotalDeposit > 0) {
+                // Calculate the referrer's combined deposit
+                $referrerCombinedDeposit = $referrerTotalDeposit + $referrerTeamDeposit;
+    
+                // Fetch the referrer's current designation
+                $currentReferrerDesignation = $referredBy->currentDesignation()->first();
+    
+                // Find the highest eligible designation for the referrer based on the combined deposit
+                $referrerDesignation = Designation::where('minimum_investment', '<=', $referrerCombinedDeposit)
+                    ->orderBy('minimum_investment', 'desc')
+                    ->first();
+    
+                if ($referrerDesignation && (!$currentReferrerDesignation || $currentReferrerDesignation->designation_id != $referrerDesignation->id)) {
+                    // Upgrade the referrer's designation
+                    UserDesignation::updateOrCreate(
+                        ['user_id' => $referredBy->id],
+                        [
+                            'designation_id' => $referrerDesignation->id,
+                            'commission_level' => $referrerDesignation->commission_level
+                        ]
+                    );
+    
+                    // Check if the referrer has already received the bonus for this designation
+                    if (!Transaction::where('user_id', $referredBy->id)
+                        ->where('details', 'Bonus for ' . $referrerDesignation->id)
+                        ->exists()) {
+                        
+                        // Create a transaction for the bonus
+                        $transaction = Transaction::create([
+                            'trx' => uniqid('trx_'), // Unique transaction ID
+                            'user_id' => $referredBy->id,
+                            'gateway_id' => 0,
+                            'amount' => $referrerDesignation->bonus,
+                            'charge' => 0,
+                            'currency' => 'USD',
+                            'details' => 'Bonus for ' . $referrerDesignation->id,
+                            'type' => 'credit',
+                            'payment_status' => 1,
+                        ]);
+    
+                        // Update the referrer's balance
+                        $referredBy->increment('balance', $transaction->amount);
+                    }
+                }
+            }
+        }
+    }
+    
 }
