@@ -51,6 +51,7 @@
                                             <th>{{ __('Email') }}</th>
                                             <th>{{ __('Country') }}</th>
                                             <th>{{ __('Status') }}</th>
+                                            <th>{{ __('Designation') }}</th>
                                             <th>{{ __('Action') }}</th>
 
                                         </tr>
@@ -66,6 +67,7 @@
 
                                                 <td>{{ $user->phone }}</td>
                                                 <td>{{ $user->email }}</td>
+                                                
                                                 <td>{{ @$user->address->country ?? 'N/A' }}</td>
                                                 <td>
 
@@ -76,6 +78,7 @@
                                                     @endif
 
                                                 </td>
+                                                <td>{{ isset($user->currentDesignation) ?$user->currentDesignation->designation->name : "N/A" }}</td>
 
                                                 <td>
 

@@ -24,7 +24,7 @@ class ManageUserController extends Controller
         $data['navManageUserActiveClass'] = 'active';
         $data['subNavManageUserActiveClass'] = 'active';
 
-        $data['users'] = User::latest()->paginate();
+        $data['users'] = User::with('currentDesignation.designation')->latest()->paginate();
 
         return view('backend.users.index')->with($data);
     }

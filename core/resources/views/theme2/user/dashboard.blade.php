@@ -64,6 +64,25 @@
                             </div>
                         </div>
                     </div>
+
+
+
+                    
+            <div class="col-xl-4 col-sm-6">
+                <div class="d-box-two">
+                    <a href="#0" class="link-btn"></a>
+                    <h3 class="d-box-two-amount">
+                        {{ isset($currentDesignation->designation->name) ? $currentDesignation->designation->name : Null }}
+                        </h3>
+                    <span class="caption-title">{{ __('Current Designation') }}</span>
+                    <div class="d-box-two-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                </div>
+            </div>
+
+
+
                     <div class="col-sm-6">
                         <div class="d-box-three">
                             <div class="icon">

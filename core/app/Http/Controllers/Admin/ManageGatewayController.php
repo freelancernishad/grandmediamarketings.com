@@ -1244,7 +1244,7 @@ class ManageGatewayController extends Controller
          $booking = Payment::where('transaction_id', $request->trx)->firstOrFail();
 
         //  return $booking->user;
-        //  return $booking->user->checkAndUpgradeDesignation();
+        //   return $booking->user->checkAndUpgradeDesignation();
          $general = GeneralSetting::first();
         $gateway = Gateway::where('gateway_name', 'bank')->first();
 

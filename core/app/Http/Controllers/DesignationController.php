@@ -11,7 +11,7 @@ class DesignationController extends Controller
     // Display a listing of the resource.
     public function index()
     {
-        $designations = Designation::all();
+        $designations = Designation::withCount('userDesignations')->get();
         return view('backend.designations.index', compact('designations'));
     }
 

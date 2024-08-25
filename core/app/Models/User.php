@@ -115,7 +115,7 @@ class User extends Authenticatable
     public function calculateTotalDeposit()
     {
         return Payment::where('user_id', $this->id)
-            ->where('status', 'approved')
+        ->where('payment_status', 1)
             ->sum('final_amount');
     }
 
@@ -127,7 +127,7 @@ class User extends Authenticatable
     public function calculateTeamDeposit()
     {
         return Payment::whereIn('user_id', $this->refferals->pluck('id'))
-            ->where('status', 'approved')
+        ->where('payment_status', 1)
             ->sum('final_amount');
     }
 
@@ -159,9 +159,11 @@ class User extends Authenticatable
                 ]
             );
 
+           
+   
             // Check if the user has already received the bonus for this designation
             if (!Transaction::where('user_id', $this->id)
-                ->where('details', 'Bonus for ' . $designation->name)
+                ->where('details', 'Bonus for ' . $designation->id)
                 ->exists()) {
                 // Create a transaction for the bonus
                 Transaction::create([
@@ -169,8 +171,9 @@ class User extends Authenticatable
                     'user_id' => $this->id,
                     'gateway_id' => 0,
                     'amount' => $designation->bonus,
+                    'charge' => 0,
                     'currency' => 'USD',
-                    'details' => 'Bonus for ' . $designation->name,
+                    'details' => 'Bonus for ' . $designation->id,
                     'type' => 'credit',
                     'payment_status' => 1,
                 ]);

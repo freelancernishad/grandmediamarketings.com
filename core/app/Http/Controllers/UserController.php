@@ -34,22 +34,30 @@ class UserController extends Controller
     public function dashboard()
     {
 
+       
 
         $pageTitle = "Dashboard";
-        $totalInvest = Payment::where('user_id', Auth::id())->where('payment_status', 1)->sum('amount');
-        $currentInvest = Payment::where('user_id', Auth::id())->where('payment_status', 1)->latest()->first('amount');
-        $currentPlan = Payment::with('plan')->where('user_id', Auth::id())->where('payment_status', 1)->latest()->first();
-        $allPlan = Payment::with('plan')->where('user_id', Auth::id())->latest()->paginate(10, ['*'], 'plan');
-        $withdraw = Withdraw::where('user_id', Auth::id())->where('status', 1)->sum('withdraw_amount');
-        $interestLogs = UserInterest::with('payment')->where('user_id', Auth::id())->latest()->paginate(10, ['*'], 'log');
 
-        $commison = RefferedCommission::where('reffered_by', Auth::id())->sum('amount');
+          // Get user ID
+        $userId = Auth::id();
+        
+        // Retrieve the user's current designation
+        $currentDesignation = Auth::user()->currentDesignation()->with('designation')->first();
 
-        $pendingInvest = Payment::where('user_id', Auth::id())->where('payment_status', 2)->sum('amount');
-        $pendingWithdraw = Withdraw::where('user_id', Auth::id())->where('status', 0)->sum('withdraw_amount');
-        $totalDeposit = Deposit::where('user_id', Auth::id())->where('payment_status', 1)->sum('final_amount');
+        $totalInvest = Payment::where('user_id', $userId)->where('payment_status', 1)->sum('amount');
+        $currentInvest = Payment::where('user_id', $userId)->where('payment_status', 1)->latest()->first('amount');
+        $currentPlan = Payment::with('plan')->where('user_id', $userId)->where('payment_status', 1)->latest()->first();
+        $allPlan = Payment::with('plan')->where('user_id', $userId)->latest()->paginate(10, ['*'], 'plan');
+        $withdraw = Withdraw::where('user_id', $userId)->where('status', 1)->sum('withdraw_amount');
+        $interestLogs = UserInterest::with('payment')->where('user_id', $userId)->latest()->paginate(10, ['*'], 'log');
 
-        return view($this->template . 'user.dashboard', compact('commison', 'pageTitle', 'interestLogs', 'totalInvest', 'currentInvest', 'currentPlan', 'allPlan', 'withdraw', 'pendingInvest', 'pendingWithdraw', 'totalDeposit'));
+        $commison = RefferedCommission::where('reffered_by', $userId)->sum('amount');
+
+        $pendingInvest = Payment::where('user_id', $userId)->where('payment_status', 2)->sum('amount');
+        $pendingWithdraw = Withdraw::where('user_id', $userId)->where('status', 0)->sum('withdraw_amount');
+        $totalDeposit = Deposit::where('user_id', $userId)->where('payment_status', 1)->sum('final_amount');
+
+        return view($this->template . 'user.dashboard', compact('commison', 'pageTitle', 'interestLogs', 'totalInvest', 'currentInvest', 'currentPlan', 'allPlan', 'withdraw', 'pendingInvest', 'pendingWithdraw', 'totalDeposit','currentDesignation'));
     }
 
     public function profile()
