@@ -71,9 +71,9 @@
                         </div>
 
 
+                      
 
-    
-
+     
 
 
                         <div class="single-slide">
@@ -98,6 +98,9 @@
                                 </div>
                             </div>
                         </div>
+
+
+                        
                         <div class="single-slide">
                             <div class="d-box-three gr-bg-7">
                                 <div class="icon">
@@ -109,6 +112,41 @@
                                 </div>
                             </div>
                         </div>
+
+  
+                        <div class="single-slide">
+                            <div class="d-box-three gr-bg-4">
+                                <div class="icon">
+                                    <i class="bi bi-wallet2 text-white"></i>
+                                </div>
+                                <div class="content">
+                                    <p class="text-small mb-0 text-white">{{ __('Current Designation') }}</p>
+                                    <h5 class="title text-white">{{ isset($currentDesignation) ? $currentDesignation->designation->name : Null }}</h5>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                        <div class="single-slide">
+                            <div class="d-box-three gr-bg-7">
+                                <div class="icon">
+                                    <i class="bi bi-wallet2 text-white"></i>
+                                </div>
+                                <div class="content">
+                                    <p class="text-small mb-0 text-white">{{ __('Total Bonus') }}</p>
+                                    <h5 class="title text-white">{{ isset($totalBonusSum) ? number_format($totalBonusSum, 2) : 0 }}
+                                        {{ @$general->site_currency }}</h5>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+
+
+
+
                     </div>
                 </div>
                 <!-- mobile card slider end -->
@@ -192,6 +230,22 @@
                             </div>
                         </div>
 
+
+
+                        
+                        <div class="col-xl-12 col-6">
+                            <div class="d-box-three gr-bg-3">
+                                <div class="icon">
+                                    <i class="bi bi-wallet2 text-white"></i>
+                                </div>
+                                <div class="content">
+                                    <p class="text-small mb-0 text-white">{{ __('Total Bonus') }}</p>
+                                    <h5 class="title text-white">
+                                        {{ isset($totalBonusSum) ? number_format($totalBonusSum, 2) : 0 }}
+                                        {{ @$general->site_currency }}</h5>
+                                </div>
+                            </div>
+                        </div>
 
 
 

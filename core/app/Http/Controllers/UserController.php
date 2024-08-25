@@ -2,26 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Admin;
-use App\Models\Deposit;
-use App\Models\Transaction;
-use App\Models\Withdraw;
-use App\Models\WithdrawGateway;
-use App\Models\Payment;
-use App\Models\UserInterest;
-use App\Models\GeneralSetting;
-use App\Models\Ranking;
-use App\Models\RefferedCommission;
-use App\Models\User;
-use App\Models\MoneyTransfer;
-use App\Models\UserRanking;
-use Illuminate\Http\Request;
-use Nette\Utils\Random;
-use Purifier;
 use Auth;
 use Hash;
-use Illuminate\Support\Facades\DB;
+use Purifier;
+use App\Models\User;
+use App\Models\Admin;
+use App\Models\Deposit;
+use App\Models\Payment;
+use App\Models\Ranking;
+use Nette\Utils\Random;
+use App\Models\Withdraw;
+use App\Models\Designation;
+use App\Models\Transaction;
+use App\Models\UserRanking;
 use Illuminate\Support\Str;
+use App\Models\UserInterest;
+use Illuminate\Http\Request;
+use App\Models\MoneyTransfer;
+use App\Models\GeneralSetting;
+use App\Models\WithdrawGateway;
+use App\Models\RefferedCommission;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -57,7 +58,20 @@ class UserController extends Controller
         $pendingWithdraw = Withdraw::where('user_id', $userId)->where('status', 0)->sum('withdraw_amount');
         $totalDeposit = Deposit::where('user_id', $userId)->where('payment_status', 1)->sum('final_amount');
 
-        return view($this->template . 'user.dashboard', compact('commison', 'pageTitle', 'interestLogs', 'totalInvest', 'currentInvest', 'currentPlan', 'allPlan', 'withdraw', 'pendingInvest', 'pendingWithdraw', 'totalDeposit','currentDesignation'));
+   // Retrieve transactions related to bonuses
+   $bonusTransactions = Transaction::where('user_id', $userId)
+   ->where('details', 'like', 'Bonus for %')
+   ->orderBy('created_at', 'desc')
+   ->get();
+
+// Calculate the total sum of bonuses
+$totalBonusSum = Transaction::where('user_id', $userId)
+   ->where('details', 'like', 'Bonus for %')
+   ->sum('amount');
+
+
+        return view($this->template . 'user.dashboard', compact('commison', 'pageTitle', 'interestLogs', 'totalInvest', 'currentInvest', 'currentPlan', 'allPlan', 'withdraw', 'pendingInvest', 'pendingWithdraw', 'totalDeposit','currentDesignation',        'bonusTransactions',
+        'totalBonusSum'));
     }
 
     public function profile()
@@ -606,16 +620,40 @@ class UserController extends Controller
     public function transactionLog(Request $request)
     {
         $pageTitle = 'Transaction Log';
-
-        $transactions = Transaction::when($request->trx, function ($item) use ($request) {
-            $item->where('trx', $request->trx);
-        })->when($request->date, function ($item) use ($request) {
-            $item->whereDate('created_at', $request->date);
-        })->where('user_id', auth()->id())->where('payment_status', 1)->latest()->paginate();
-
-
+    
+        $transactions = Transaction::when($request->trx, function ($query) use ($request) {
+                $query->where('trx', $request->trx);
+            })
+            ->when($request->date, function ($query) use ($request) {
+                $query->whereDate('created_at', $request->date);
+            })
+            ->where('user_id', auth()->id())
+            ->where('payment_status', 1)
+            ->latest()
+            ->paginate();
+    
+        // Modify the 'details' field for bonus transactions
+        $transactions->getCollection()->transform(function ($transaction) {
+            if (strpos($transaction->details, 'Bonus for ') !== false) {
+                // Extract the designation ID from the details string
+                preg_match('/Bonus for (\d+)/', $transaction->details, $matches);
+                if (isset($matches[1])) {
+                    $designationId = $matches[1];
+                    // Find the designation by ID
+                    $designation = Designation::find($designationId);
+                    if ($designation) {
+                        // Replace the ID with the designation name in the details string
+                        $transaction->details = str_replace('Bonus for ' . $designationId, 'Bonus for ' . $designation->name, $transaction->details);
+                    }
+                }
+            }
+            return $transaction;
+        });
+    
         return view($this->template . 'user.transaction', compact('pageTitle', 'transactions'));
     }
+    
+    
 
 
     public function kyc()
