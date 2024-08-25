@@ -142,11 +142,11 @@ class User extends Authenticatable
         // User's own deposit
         $totalOwnDeposit = $this->calculateTotalDeposit();
 
-        // User's team deposit, including deposits from referred users
-        $teamDeposit = $this->calculateTeamDeposit();
+        // User's downline deposit, including deposits from all referred users (direct or indirect)
+        $downlineDeposit = $this->calculateEntireDownlineDeposit();
 
-        // Combined deposit (user's deposit + team deposit)
-        $totalCombinedDeposit = $totalOwnDeposit + $teamDeposit;
+        // Combined deposit (user's deposit + downline deposit)
+        $totalCombinedDeposit = $totalOwnDeposit + $downlineDeposit;
 
         // Fetch the user's current designation
         $currentDesignation = $this->currentDesignation()->first();
@@ -199,14 +199,15 @@ class User extends Authenticatable
         $referredBy = $this->refferedBy;
 
         if ($referredBy) {
-            // Calculate the referrer's total deposit (own deposit)
+            // Calculate the referrer's total and team deposits
             $referrerTotalDeposit = $referredBy->calculateTotalDeposit();
+            $referrerTeamDeposit = $referredBy->calculateEntireDownlineDeposit();
 
-            // Calculate the combined deposits of the referrer and their entire downline
-            $referrerCombinedDeposit = $referrerTotalDeposit + $this->calculateEntireDownlineDeposit($referredBy);
+            // Only proceed if the referrer has made an investment
+            if ($referrerTotalDeposit > 0) {
+                // Calculate the referrer's combined deposit
+                $referrerCombinedDeposit = $referrerTotalDeposit + $referrerTeamDeposit;
 
-            // Only proceed if the referrer or their downline has made an investment
-            if ($referrerCombinedDeposit > 0) {
                 // Fetch the referrer's current designation
                 $currentReferrerDesignation = $referredBy->currentDesignation()->first();
 
@@ -221,7 +222,7 @@ class User extends Authenticatable
                         ['user_id' => $referredBy->id],
                         [
                             'designation_id' => $referrerDesignation->id,
-                            'commission_level' => $referrerDesignation->commission_level,
+                            'commission_level' => $referrerDesignation->commission_level
                         ]
                     );
 
@@ -246,31 +247,18 @@ class User extends Authenticatable
                         // Update the referrer's balance
                         $referredBy->increment('balance', $transaction->amount);
                     }
-
-                    // Recursively promote the next user up the chain
-                    $referredBy->promoteReferredByUser();
                 }
             }
         }
     }
 
-    /**
-     * Calculate the combined deposit for the entire downline of a user.
-     * This includes all users directly or indirectly referred by the given user.
-     */
-    protected function calculateEntireDownlineDeposit($user)
+    protected function calculateEntireDownlineDeposit()
     {
         $totalDeposit = 0;
 
-        // Get all users directly referred by this user
-        $referredUsers = $user->referredUsers;
-
-        foreach ($referredUsers as $referredUser) {
-            // Add the total deposit of this referred user
-            $totalDeposit += $referredUser->calculateTotalDeposit();
-
-            // Recursively add the deposits of this user's downline
-            $totalDeposit += $this->calculateEntireDownlineDeposit($referredUser);
+        foreach ($this->refferals as $referral) {
+            $totalDeposit += $referral->calculateTotalDeposit();
+            $totalDeposit += $referral->calculateEntireDownlineDeposit();
         }
 
         return $totalDeposit;
