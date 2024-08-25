@@ -261,24 +261,22 @@ class User extends Authenticatable
     }
 
     /**
-     * Calculate the total deposit from the entire downline of the given user.
+     * Calculate the total deposit from the entire downline of the user.
      * This includes investments made by users referred directly and indirectly.
      *
-     * @param User $user
      * @return float
      */
-    protected function calculateDepositFromEntireDownline(User $user)
+    public function calculateEntireDownlineDeposit()
     {
         $totalDeposit = 0;
 
-        foreach ($user->referrals as $referral) {
+        foreach ($this->referrals as $referral) {
             $totalDeposit += $referral->calculateTotalDeposit();
-            $totalDeposit += $this->calculateDepositFromEntireDownline($referral);
+            $totalDeposit += $referral->calculateEntireDownlineDeposit();
         }
 
         return $totalDeposit;
     }
-
 
 
 
