@@ -37,7 +37,7 @@
                                                 <td><?php echo e($designation->commission_level); ?></td>
                                                 <td>
                                                     <a href="<?php echo e(route('admin.designations.users', $designation->id)); ?>" class="btn btn-info">
-                                                        View Users
+                                                        View User ( <?php echo e($designation->user_designations_count); ?> )
                                                     </a>
                                                 </td>
                                                 <td>

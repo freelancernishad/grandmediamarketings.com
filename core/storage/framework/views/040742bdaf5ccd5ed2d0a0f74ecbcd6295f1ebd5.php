@@ -1,6 +1,3 @@
-
-
-
 <?php $__env->startSection('content'); ?>
     <div class="main-content">
         <section class="section">
@@ -24,7 +21,7 @@
                                             'id' => 'search_text',
                                             'filter_colum' => 'email'
                                         ],
-                                        
+
                                         'select' => [
                                             'options' => [
                                                 '1' => 'Active',
@@ -51,6 +48,7 @@
                                             <th><?php echo e(__('Email')); ?></th>
                                             <th><?php echo e(__('Country')); ?></th>
                                             <th><?php echo e(__('Status')); ?></th>
+                                            <th><?php echo e(__('Designation')); ?></th>
                                             <th><?php echo e(__('Action')); ?></th>
 
                                         </tr>
@@ -66,6 +64,7 @@
 
                                                 <td><?php echo e($user->phone); ?></td>
                                                 <td><?php echo e($user->email); ?></td>
+
                                                 <td><?php echo e(@$user->address->country ?? 'N/A'); ?></td>
                                                 <td>
 
@@ -76,6 +75,7 @@
                                                     <?php endif; ?>
 
                                                 </td>
+                                                <td><?php echo e(isset($user->currentDesignation) ?$user->currentDesignation->designation->name : "N/A"); ?></td>
 
                                                 <td>
 

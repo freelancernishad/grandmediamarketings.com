@@ -24,7 +24,7 @@
                                             'id' => 'search_text',
                                             'filter_colum' => 'email'
                                         ],
-                                        
+
                                         'select' => [
                                             'options' => [
                                                 '1' => 'Active',
@@ -67,7 +67,7 @@
 
                                                 <td>{{ $user->phone }}</td>
                                                 <td>{{ $user->email }}</td>
-                                                
+
                                                 <td>{{ @$user->address->country ?? 'N/A' }}</td>
                                                 <td>
 
