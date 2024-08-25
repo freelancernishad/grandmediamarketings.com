@@ -166,7 +166,7 @@ class User extends Authenticatable
                 ->where('details', 'Bonus for ' . $designation->id)
                 ->exists()) {
                 // Create a transaction for the bonus
-                Transaction::create([
+                $transaction = Transaction::create([
                     'trx' => uniqid('trx_'), // Unique transaction ID
                     'user_id' => $this->id,
                     'gateway_id' => 0,
@@ -177,6 +177,11 @@ class User extends Authenticatable
                     'type' => 'credit',
                     'payment_status' => 1,
                 ]);
+
+
+             // Update the user's balance
+            $this->increment('balance', $transaction->amount);
+
             }
         }
     }

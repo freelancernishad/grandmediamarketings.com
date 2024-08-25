@@ -19,7 +19,7 @@
                 </div>
 
                 <!-- mobile card slider start -->
-                <div class="col-12 d-sm-none d-block">
+                <div class="col-12 d-lg-none d-block">
                     <div class="mobile-card-slider">
                         <div class="single-slide">
                             <div class="d-box-three gr-bg-1">
@@ -151,9 +151,15 @@
                 </div>
                 <!-- mobile card slider end -->
 
-                <div class="col-xl-4 col-lg-6 d-sm-block d-none">
+
+
+
+
+
+                <div class="col-xl-4 col-lg-6 d-lg-block d-none">
                     <div class="row g-sm-4 g-3">
-                        <div class="col-lg-12 col-6">
+                
+                        <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-1">
                                 <div class="icon">
                                     <i class="bi bi-piggy-bank text-white"></i>
@@ -165,7 +171,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-12 col-6">
+                        
+                        <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-3">
                                 <div class="icon">
                                     <i class="bi bi-hourglass-split text-white"></i>
@@ -177,11 +184,8 @@
                                 </div>
                             </div>
                         </div>
-
-
-
                         
-                        <div class="col-xl-12 col-6">
+                        <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
                                     <i class="bi bi-wallet2 text-white"></i>
@@ -193,17 +197,14 @@
                                 </div>
                             </div>
                         </div>
-
-
-
-
-
+                
                     </div>
                 </div>
-
-                <div class="col-xl-4 d-sm-block d-none">
+                
+                <div class="col-xl-4 d-lg-block d-none">
                     <div class="row g-sm-4 g-3">
-                        <div class="col-xl-12 col-6">
+                
+                        <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-2">
                                 <div class="icon">
                                     <i class="bi bi-cash-coin text-white"></i>
@@ -215,8 +216,8 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="col-xl-12 col-6">
+                        
+                        <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
                                     <i class="bi bi-wallet2 text-white"></i>
@@ -230,11 +231,8 @@
                                 </div>
                             </div>
                         </div>
-
-
-
-                        
-                        <div class="col-xl-12 col-6">
+                
+                        <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-3">
                                 <div class="icon">
                                     <i class="bi bi-wallet2 text-white"></i>
@@ -248,12 +246,18 @@
                                 </div>
                             </div>
                         </div>
-
-
-
-
+                
                     </div>
                 </div>
+                
+
+
+
+
+
+
+
+
             </div>
 
             <div class="row gy-4 mt-1 d-box-two-wrapper d-sm-flex d-none">
