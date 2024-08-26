@@ -139,6 +139,7 @@ class SiteController extends Controller
         $user->balance = $user->balance - $request->amount;
         $user->save();
 
+
         $deposit = Payment::create([
             'plan_id' => $plan_id->id,
             'gateway_id' => 0,
@@ -177,6 +178,9 @@ class SiteController extends Controller
             'amount' => $deposit->amount,
             'currency' => $general->site_currency,
         ], $deposit->user);
+
+        // Check and upgrade the user's designation
+        $user->checkAndUpgradeDesignation();
 
         return redirect()->route('user.dashboard')->with('success', 'Successfully Invest');
     }
