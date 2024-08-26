@@ -318,42 +318,38 @@ class User extends Authenticatable
     {
         // Start with the user who referred the current user
         $currentUser = $this->refferedBy;
-
+    
         // Create a set to track visited users and avoid loops
         $visitedUsers = [];
-
+    
         // Loop through the referral chain
         while ($currentUser) {
             // Check if we've already visited this user to avoid cycles
             if (in_array($currentUser->id, $visitedUsers)) {
                 break; // Exit the loop if a cycle is detected
             }
-
+    
             // Add the current user to the visited users set
             $visitedUsers[] = $currentUser->id;
-
+    
             // Calculate the current user's total and team deposits
             $totalDeposit = $currentUser->calculateTotalDeposit();
             $teamDeposit = $currentUser->calculateTeamDeposit();
-
-
+    
             // Only proceed if the referrer has made an investment
             if ($totalDeposit > 0) {
                 // Calculate the user's combined deposit
                 $combinedDeposit = $totalDeposit + $teamDeposit;
-                // return $combinedDeposit;
+    
                 // Fetch the user's current designation
                 $currentDesignation = $currentUser->currentDesignation()->first();
-
+    
                 // Find the highest eligible designation for the referrer based on the combined deposit
                 $designation = Designation::where('minimum_investment', '<=', $combinedDeposit)
                     ->orderBy('minimum_investment', 'desc')
                     ->first();
-
+    
                 if ($designation && (!$currentDesignation || $currentDesignation->designation_id != $designation->id)) {
-
-                    // return $currentUser;
-
                     // Upgrade the referrer's designation
                     UserDesignation::updateOrCreate(
                         ['user_id' => $currentUser->id],
@@ -362,12 +358,12 @@ class User extends Authenticatable
                             'commission_level' => $designation->commission_level
                         ]
                     );
-
+    
                     // Check if the referrer has already received the bonus for this designation
                     if (!Transaction::where('user_id', $currentUser->id)
                         ->where('details', 'Bonus for ' . $designation->id)
                         ->exists()) {
-
+    
                         // Create a transaction for the bonus
                         $transaction = Transaction::create([
                             'trx' => uniqid('trx_'), // Unique transaction ID
@@ -380,16 +376,16 @@ class User extends Authenticatable
                             'type' => 'credit',
                             'payment_status' => 1,
                         ]);
-
+    
                         // Update the referrer's balance
                         $currentUser->increment('balance', $transaction->amount);
                     }
-
-                    // Break the loop once a user has been promoted
-                    break;
+    
+                    // Continue to find the next referrer who might need promotion
+                    // Skip the "break;" here to continue checking the referral chain
                 }
             }
-
+    
             // Move to the next referrer in the chain
             $currentUser = $currentUser->refferedBy;
         }
