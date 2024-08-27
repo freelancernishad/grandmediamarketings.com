@@ -1,16 +1,18 @@
 <?php
 
-use App\Models\Advertise;
-use App\Models\EmailTemplate;
-use App\Models\GeneralSetting;
+use App\Models\User;
 use App\Models\Payment;
 use App\Models\Ranking;
 use App\Models\Refferal;
-use App\Models\RefferedCommission;
+use App\Models\Advertise;
 use App\Models\SectionData;
-use PHPMailer\PHPMailer\PHPMailer;
+use App\Models\EmailTemplate;
+use App\Models\GeneralSetting;
+use App\Models\UserDesignation;
+use App\Models\RefferedCommission;
 use PHPMailer\PHPMailer\Exception;
-use App\Models\User;
+use PHPMailer\PHPMailer\PHPMailer;
+use Illuminate\Support\Facades\Log;
 
 function makeDirectory($path)
 {
@@ -295,15 +297,21 @@ function colorText($haystack, $needle)
     return str_replace($needle, $replace, $haystack);
 }
 
-function refferMoney($id, $user, $refferal_type, $amount, $plan)
+ function refferMoney($id, $user, $refferal_type, $amount, $plan)
 {
-    $user_id = $id;
-
     // Get the referral level information
-    $level = Refferal::where('status', 1)->where('type', $refferal_type)->where('plan_id', $plan)->first();
+    $level = Refferal::where('status', 1)
+                     ->where('type', $refferal_type)
+                     ->where('plan_id', $plan)
+                     ->first();
+
+    if (!$level) {
+        \Log::error('Referral plan not found', ['plan_id' => $plan]);
+        return;
+    }
 
     // Count the number of levels in the referral plan
-    $counter = $level ? count($level->level) : 0;
+    $counter = count($level->level);
 
     // General settings
     $general = GeneralSetting::first();
@@ -312,53 +320,41 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
     $designationLevels = [];
 
     for ($i = 0; $i < $counter; $i++) {
+        if (!$user) {
+            \Log::info('No more referrers in the chain');
+            break;
+        }
 
-        if ($user) {
+        // Access the user's designation relationship via UserDesignation
+        $userDesignation = UserDesignation::where('user_id', $user->id)->first();
+        $designationLevels[] = $userDesignation ? $userDesignation->commission_level : 0;
 
-            // Check the user's designation and the corresponding commission level
-            $userDesignation = $user->designation;
-            $designationLevels[] = $userDesignation ? $userDesignation->commission_level : 0;
+        \Log::info('Processing user', ['user_id' => $user->id]);
+        \Log::info('User designation level', ['level' => $userDesignation->commission_level ?? 0]);
 
-            if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
+        if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
+            // Check if the user's investment meets the minimum required for receiving the commission
+            if ($user->balance >= $userDesignation->designation->investment_threshold) {
+                // Calculate the commission
+                $commission = ($level->commision[$i] * $amount) / 100;
 
-                // Check if the user's investment meets the minimum required for receiving the commission
-                if ($user->balance >= $userDesignation->investment_threshold) {
-
-                    // Calculate the commission
-                    $commission = ($level->commision[$i] * $amount) / 100;
-
-                    // Check if this is the 7th level and the user is at the 7th designation
-                    if ($i === 6 && $userDesignation->commission_level === 7) {
-                        // Check if all previous levels (1 to 7) are at the 1st designation
-                        if (count(array_unique(array_slice($designationLevels, 0, 7))) === 1 && $designationLevels[0] === 1) {
-                            // User at the 7th level gets only the 1st level commission
-                            if ($i === 0) {
-                                $user->balance += $commission;
-                                $user->save();
-                                RefferedCommission::create([
-                                    'reffered_by' => $user->id,
-                                    'reffered_to' => $id,
-                                    'commission_from' => $user_id,
-                                    'amount' => $commission,
-                                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                                ]);
-                                sendMail('Commission', [
-                                    'refer_user' => $user->username,
-                                    'amount' => $commission,
-                                    'currency' => $general->site_currency,
-                                ], $user);
-                            }
-                        } else {
-                            // Normal commission distribution for 7th level user
+                // Handle special case for 7th level
+                if ($i === 6 && $userDesignation->commission_level === 7) {
+                    // Check if all previous levels (1 to 7) are at the 1st designation
+                    if (count(array_unique(array_slice($designationLevels, 0, 7))) === 1 && $designationLevels[0] === 1) {
+                        // User at the 7th level gets only the 1st level commission
+                        if ($i === 0) {
                             $user->balance += $commission;
                             $user->save();
+
                             RefferedCommission::create([
                                 'reffered_by' => $user->id,
                                 'reffered_to' => $id,
-                                'commission_from' => $user_id,
+                                'commission_from' => $user->id,
                                 'amount' => $commission,
                                 'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                             ]);
+
                             sendMail('Commission', [
                                 'refer_user' => $user->username,
                                 'amount' => $commission,
@@ -366,16 +362,18 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                             ], $user);
                         }
                     } else {
-                        // Normal commission distribution for other levels
+                        // Normal commission distribution for 7th level user
                         $user->balance += $commission;
                         $user->save();
+
                         RefferedCommission::create([
                             'reffered_by' => $user->id,
                             'reffered_to' => $id,
-                            'commission_from' => $user_id,
+                            'commission_from' => $user->id,
                             'amount' => $commission,
                             'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                         ]);
+
                         sendMail('Commission', [
                             'refer_user' => $user->username,
                             'amount' => $commission,
@@ -383,26 +381,45 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                         ], $user);
                     }
                 } else {
-                    \Log::info('User does not meet the minimum investment threshold', [
-                        'user_id' => $user->id,
-                        'required_investment' => $userDesignation->investment_threshold,
-                        'current_balance' => $user->balance
+                    // Normal commission distribution for other levels
+                    $user->balance += $commission;
+                    $user->save();
+
+                    RefferedCommission::create([
+                        'reffered_by' => $user->id,
+                        'reffered_to' => $id,
+                        'commission_from' => $user->id,
+                        'amount' => $commission,
+                        'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                     ]);
+
+                    sendMail('Commission', [
+                        'refer_user' => $user->username,
+                        'amount' => $commission,
+                        'currency' => $general->site_currency,
+                    ], $user);
                 }
             } else {
-                \Log::info('User does not meet the commission level criteria', [
+                \Log::info('User does not meet the minimum investment threshold', [
                     'user_id' => $user->id,
-                    'required_level' => $i + 1,
-                    'current_level' => $userDesignation->commission_level ?? 0
+                    'required_investment' => $userDesignation->designation->investment_threshold ?? 'N/A',
+                    'current_balance' => $user->balance
                 ]);
             }
-
-            // Move up the referral chain
-            $id = $user->id;
-            $user = $user->refferedBy;
+        } else {
+            \Log::info('User does not meet the commission level criteria', [
+                'user_id' => $user->id,
+                'required_level' => $i + 1,
+                'current_level' => $userDesignation->commission_level ?? 0
+            ]);
         }
+
+        // Move up the referral chain
+        $user = $user->refferedBy;
     }
 }
+
+
 
 
 
