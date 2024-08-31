@@ -327,11 +327,14 @@ function colorText($haystack, $needle)
 
         // Access the user's designation relationship via UserDesignation
         $userDesignation = UserDesignation::where('user_id', $user->id)->first();
-        $designationLevels[] = $userDesignation ? $userDesignation->commission_level : 0;
+
+        // Store the designation level
+        $designationLevels[$i] = $userDesignation ? $userDesignation->commission_level : 0;
 
         \Log::info('Processing user', ['user_id' => $user->id]);
         \Log::info('User designation level', ['level' => $userDesignation->commission_level ?? 0]);
 
+        // Check if the user's designation level is sufficient
         if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
             // Check if the user's investment meets the minimum required for receiving the commission
             if ($user->balance >= $userDesignation->designation->investment_threshold) {
@@ -347,10 +350,12 @@ function colorText($haystack, $needle)
                             $user->balance += $commission;
                             $user->save();
 
+
+
                             RefferedCommission::create([
                                 'reffered_by' => $user->id,
                                 'reffered_to' => $id,
-                                'commission_from' => $user->id,
+                                'commission_from' => $id,
                                 'amount' => $commission,
                                 'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                             ]);
@@ -369,7 +374,7 @@ function colorText($haystack, $needle)
                         RefferedCommission::create([
                             'reffered_by' => $user->id,
                             'reffered_to' => $id,
-                            'commission_from' => $user->id,
+                            'commission_from' => $id,
                             'amount' => $commission,
                             'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                         ]);
@@ -388,7 +393,7 @@ function colorText($haystack, $needle)
                     RefferedCommission::create([
                         'reffered_by' => $user->id,
                         'reffered_to' => $id,
-                        'commission_from' => $user->id,
+                        'commission_from' => $id,
                         'amount' => $commission,
                         'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                     ]);
@@ -412,12 +417,21 @@ function colorText($haystack, $needle)
                 'required_level' => $i + 1,
                 'current_level' => $userDesignation->commission_level ?? 0
             ]);
+
+            // If the user does not meet the level requirement, commission should be passed up
+            if ($user->refferedBy) {
+                $user = $user->refferedBy;
+                continue;
+            } else {
+                \Log::info('No upline available to pass commission');
+            }
         }
 
         // Move up the referral chain
         $user = $user->refferedBy;
     }
 }
+
 
 
 
