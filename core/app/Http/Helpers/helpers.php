@@ -306,7 +306,7 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                      ->first();
 
     if (!$level) {
-        \Log::error('Referral plan not found', ['plan_id' => $plan]);
+        \Log::error('Referral plan not found for the provided plan ID.', ['plan_id' => $plan]);
         return;
     }
 
@@ -322,9 +322,16 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
     // Initialize a variable to accumulate missed commissions
     $missedCommission = 0;
 
+    \Log::info('Starting referral commission distribution.', [
+        'user_id' => $user->id,
+        'referral_type' => $refferal_type,
+        'amount' => $amount,
+        'plan_id' => $plan
+    ]);
+
     for ($i = 0; $i < $counter; $i++) {
         if (!$user) {
-            \Log::info('No more referrers in the chain');
+            \Log::info('Referral chain ended. No more referrers available.');
             break;
         }
 
@@ -334,12 +341,15 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         // Store the designation level
         $designationLevels[$i] = $userDesignation ? $userDesignation->commission_level : 0;
 
-        \Log::info('Processing user', ['user_id' => $user->id]);
-        \Log::info('User designation level', ['level' => $userDesignation->commission_level ?? 0]);
+        \Log::info('Processing commission for user.', [
+            'user_id' => $user->id,
+            'designation_level' => $userDesignation->commission_level ?? 0,
+            'required_level' => $i + 1
+        ]);
 
         // Check if the user's designation level is sufficient
         if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
-            // Check if the user's investment meets the minimum required for receiving the commission
+            // Check if the user's balance meets the minimum investment required to receive the commission
             if ($user->balance >= $userDesignation->designation->minimum_investment) {
                 // Calculate the commission
                 $commission = ($level->commision[$i] * $amount) / 100;
@@ -347,10 +357,15 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 // Add any missed commission from previous levels
                 if ($missedCommission > 0 && $general->missed_commission_to_seventh && $userDesignation->commission_level === 7) {
                     $commission += $missedCommission;
+                    \Log::info('Added missed commission to the user.', [
+                        'user_id' => $user->id,
+                        'missed_commission' => $missedCommission,
+                        'total_commission' => $commission
+                    ]);
                     $missedCommission = 0; // Reset missed commission after it's applied
                 }
 
-                // Normal commission distribution
+                // Distribute the commission
                 $user->balance += $commission;
                 $user->save();
 
@@ -362,20 +377,26 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                     'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
                 ]);
 
+                \Log::info('Commission distributed successfully.', [
+                    'user_id' => $user->id,
+                    'commission' => $commission,
+                    'new_balance' => $user->balance
+                ]);
+
                 sendMail('Commission', [
                     'refer_user' => $user->username,
                     'amount' => $commission,
                     'currency' => $general->site_currency,
                 ], $user);
             } else {
-                \Log::info('User does not meet the minimum investment threshold', [
+                \Log::info('User does not meet the minimum investment requirement for commission.', [
                     'user_id' => $user->id,
-                    'required_investment' => $userDesignation->designation->minimum_investment ?? 'N/A',
+                    'minimum_investment' => $userDesignation->designation->minimum_investment,
                     'current_balance' => $user->balance
                 ]);
             }
         } else {
-            \Log::info('User does not meet the commission level criteria', [
+            \Log::info('User does not meet the required designation level for commission.', [
                 'user_id' => $user->id,
                 'required_level' => $i + 1,
                 'current_level' => $userDesignation->commission_level ?? 0
@@ -384,12 +405,20 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             // If the user does not meet the level requirement, accumulate the missed commission
             $missedCommission += ($level->commision[$i] * $amount) / 100;
 
+            \Log::info('Missed commission accumulated.', [
+                'user_id' => $user->id,
+                'missed_commission' => $missedCommission
+            ]);
+
             // Pass the commission up the chain if possible
             if ($user->refferedBy) {
                 $user = $user->refferedBy;
                 continue;
             } else {
-                \Log::info('No upline available to pass commission');
+                \Log::info('No upline available to pass commission.', [
+                    'user_id' => $user->id,
+                    'missed_commission' => $missedCommission
+                ]);
             }
         }
 
@@ -413,14 +442,27 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
             ]);
 
+            \Log::info('Missed commission assigned to 7th designation user.', [
+                'user_id' => $seventhDesignationUser->id,
+                'missed_commission' => $missedCommission,
+                'new_balance' => $seventhDesignationUser->balance
+            ]);
+
             sendMail('Commission', [
                 'refer_user' => $seventhDesignationUser->username,
                 'amount' => $missedCommission,
                 'currency' => $general->site_currency,
             ], $seventhDesignationUser);
+        } else {
+            \Log::warning('No user found with 7th designation level to receive missed commission.', [
+                'missed_commission' => $missedCommission
+            ]);
         }
     }
+
+    \Log::info('Referral commission distribution process completed.');
 }
+
 
 
 
