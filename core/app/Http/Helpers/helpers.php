@@ -311,13 +311,16 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
     }
 
     // Count the number of levels in the referral plan
-    $counter = count($level->level);
+    $counter = count($level->commision);
 
     // General settings
     $general = GeneralSetting::first();
 
     // Store designation levels of referrers
     $designationLevels = [];
+
+    // Initialize a variable to accumulate missed commissions
+    $missedCommission = 0;
 
     for ($i = 0; $i < $counter; $i++) {
         if (!$user) {
@@ -337,74 +340,37 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         // Check if the user's designation level is sufficient
         if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
             // Check if the user's investment meets the minimum required for receiving the commission
-            if ($user->balance >= $userDesignation->designation->investment_threshold) {
+            if ($user->balance >= $userDesignation->designation->minimum_investment) {
                 // Calculate the commission
                 $commission = ($level->commision[$i] * $amount) / 100;
 
-                // Handle special case for 7th level
-                if ($userDesignation->commission_level === 7) {
-                    if ($general->missed_commission_to_seventh) {
-                        // If toggle is enabled, collect all missed commissions
-                        $user->balance += $commission;
-                        $user->save();
-
-                        RefferedCommission::create([
-                            'reffered_by' => $user->id,
-                            'reffered_to' => $id,
-                            'commission_from' => $id,
-                            'amount' => $commission,
-                            'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                        ]);
-
-                        sendMail('Commission', [
-                            'refer_user' => $user->username,
-                            'amount' => $commission,
-                            'currency' => $general->site_currency,
-                        ], $user);
-                    } else {
-                        // Normal commission distribution for 7th level user
-                        if ($i === 6) {
-                            $user->balance += $commission;
-                            $user->save();
-
-                            RefferedCommission::create([
-                                'reffered_by' => $user->id,
-                                'reffered_to' => $id,
-                                'commission_from' => $id,
-                                'amount' => $commission,
-                                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                            ]);
-
-                            sendMail('Commission', [
-                                'refer_user' => $user->username,
-                                'amount' => $commission,
-                                'currency' => $general->site_currency,
-                            ], $user);
-                        }
-                    }
-                } else {
-                    // Normal commission distribution for other levels
-                    $user->balance += $commission;
-                    $user->save();
-
-                    RefferedCommission::create([
-                        'reffered_by' => $user->id,
-                        'reffered_to' => $id,
-                        'commission_from' => $id,
-                        'amount' => $commission,
-                        'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                    ]);
-
-                    sendMail('Commission', [
-                        'refer_user' => $user->username,
-                        'amount' => $commission,
-                        'currency' => $general->site_currency,
-                    ], $user);
+                // Add any missed commission from previous levels
+                if ($missedCommission > 0 && $general->missed_commission_to_seventh && $userDesignation->commission_level === 7) {
+                    $commission += $missedCommission;
+                    $missedCommission = 0; // Reset missed commission after it's applied
                 }
+
+                // Normal commission distribution
+                $user->balance += $commission;
+                $user->save();
+
+                RefferedCommission::create([
+                    'reffered_by' => $user->id,
+                    'reffered_to' => $id,
+                    'commission_from' => $id,
+                    'amount' => $commission,
+                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                ]);
+
+                sendMail('Commission', [
+                    'refer_user' => $user->username,
+                    'amount' => $commission,
+                    'currency' => $general->site_currency,
+                ], $user);
             } else {
                 \Log::info('User does not meet the minimum investment threshold', [
                     'user_id' => $user->id,
-                    'required_investment' => $userDesignation->designation->investment_threshold ?? 'N/A',
+                    'required_investment' => $userDesignation->designation->minimum_investment ?? 'N/A',
                     'current_balance' => $user->balance
                 ]);
             }
@@ -415,7 +381,10 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'current_level' => $userDesignation->commission_level ?? 0
             ]);
 
-            // If the user does not meet the level requirement, commission should be passed up
+            // If the user does not meet the level requirement, accumulate the missed commission
+            $missedCommission += ($level->commision[$i] * $amount) / 100;
+
+            // Pass the commission up the chain if possible
             if ($user->refferedBy) {
                 $user = $user->refferedBy;
                 continue;
@@ -427,7 +396,32 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         // Move up the referral chain
         $user = $user->refferedBy;
     }
+
+    // If there is any missed commission left, assign it to the 7th designation if enabled
+    if ($missedCommission > 0 && $general->missed_commission_to_seventh) {
+        $seventhDesignationUser = UserDesignation::where('commission_level', 7)->first()->user;
+
+        if ($seventhDesignationUser) {
+            $seventhDesignationUser->balance += $missedCommission;
+            $seventhDesignationUser->save();
+
+            RefferedCommission::create([
+                'reffered_by' => $seventhDesignationUser->id,
+                'reffered_to' => $id,
+                'commission_from' => $id,
+                'amount' => $missedCommission,
+                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+            ]);
+
+            sendMail('Commission', [
+                'refer_user' => $seventhDesignationUser->username,
+                'amount' => $missedCommission,
+                'currency' => $general->site_currency,
+            ], $seventhDesignationUser);
+        }
+    }
 }
+
 
 
 
