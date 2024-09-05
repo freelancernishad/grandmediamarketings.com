@@ -139,7 +139,7 @@
                                             class="form-control form_control" value="{{ @$general->map_link }}">
                                     </div>
 
-                                    <div class="form-group col-md-3">
+                                    <div class="form-group col-md-2">
                                         <label for="" class="w-100">{{ __('Email Verification On') }} </label>
                                         <div class="custom-switch custom-switch-label-onoff">
                                             <input class="custom-switch-input" id="ev" type="checkbox"
@@ -149,7 +149,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group col-md-3">
+                                    <div class="form-group col-md-2">
                                         <label for="" class="w-100">{{ __('SMS Verification On') }} </label>
                                         <div class="custom-switch custom-switch-label-onoff">
                                             <input class="custom-switch-input" id="sv" type="checkbox"
@@ -160,7 +160,7 @@
                                     </div>
 
 
-                                    <div class="form-group col-md-3">
+                                    <div class="form-group col-md-2">
                                         <label for="" class="w-100">{{ __('User Registration') }} </label>
                                         <div class="custom-switch custom-switch-label-onoff">
                                             <input class="custom-switch-input" id="ug_r" type="checkbox"
@@ -170,12 +170,22 @@
                                     </div>
 
 
-                                    <div class="form-group col-md-3">
+                                    <div class="form-group col-md-2">
                                         <label for="" class="w-100">{{ __('User KYC') }} </label>
                                         <div class="custom-switch custom-switch-label-onoff">
                                             <input class="custom-switch-input" id="ug_kyc" type="checkbox"
                                                 name="user_kyc" {{ @$general->user_kyc ? 'checked' : '' }}>
                                             <label class="custom-switch-btn" for="ug_kyc"></label>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="form-group col-md-4">
+                                        <label for="" class="w-100">{{ __('Missed Commission to 7th') }} </label>
+                                        <div class="custom-switch custom-switch-label-onoff">
+                                            <input class="custom-switch-input" id="missed_commission_to_seventh" type="checkbox"
+                                                name="missed_commission_to_seventh" {{ @$general->missed_commission_to_seventh ? 'checked' : '' }}>
+                                            <label class="custom-switch-btn" for="missed_commission_to_seventh"></label>
                                         </div>
                                     </div>
 

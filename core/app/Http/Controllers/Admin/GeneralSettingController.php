@@ -23,7 +23,7 @@ class GeneralSettingController extends Controller
 
     public function generalSettingUpdate(Request $request)
     {
-       
+
 
         $general = GeneralSetting::first();
 
@@ -130,6 +130,7 @@ class GeneralSettingController extends Controller
             'max_amount' => $request->max_amount,
 
             'user_kyc' => $request->user_kyc == 'on' ? 1 : 0,
+            'missed_commission_to_seventh' => $request->missed_commission_to_seventh == 'on' ? 1 : 0,
 
         ]);
 

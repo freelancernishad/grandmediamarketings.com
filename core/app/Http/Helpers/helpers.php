@@ -297,7 +297,7 @@ function colorText($haystack, $needle)
     return str_replace($needle, $replace, $haystack);
 }
 
- function refferMoney($id, $user, $refferal_type, $amount, $plan)
+function refferMoney($id, $user, $refferal_type, $amount, $plan)
 {
     // Get the referral level information
     $level = Refferal::where('status', 1)
@@ -342,32 +342,9 @@ function colorText($haystack, $needle)
                 $commission = ($level->commision[$i] * $amount) / 100;
 
                 // Handle special case for 7th level
-                if ($i === 6 && $userDesignation->commission_level === 7) {
-                    // Check if all previous levels (1 to 7) are at the 1st designation
-                    if (count(array_unique(array_slice($designationLevels, 0, 7))) === 1 && $designationLevels[0] === 1) {
-                        // User at the 7th level gets only the 1st level commission
-                        if ($i === 0) {
-                            $user->balance += $commission;
-                            $user->save();
-
-
-
-                            RefferedCommission::create([
-                                'reffered_by' => $user->id,
-                                'reffered_to' => $id,
-                                'commission_from' => $id,
-                                'amount' => $commission,
-                                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                            ]);
-
-                            sendMail('Commission', [
-                                'refer_user' => $user->username,
-                                'amount' => $commission,
-                                'currency' => $general->site_currency,
-                            ], $user);
-                        }
-                    } else {
-                        // Normal commission distribution for 7th level user
+                if ($userDesignation->commission_level === 7) {
+                    if ($general->missed_commission_to_seventh) {
+                        // If toggle is enabled, collect all missed commissions
                         $user->balance += $commission;
                         $user->save();
 
@@ -384,6 +361,26 @@ function colorText($haystack, $needle)
                             'amount' => $commission,
                             'currency' => $general->site_currency,
                         ], $user);
+                    } else {
+                        // Normal commission distribution for 7th level user
+                        if ($i === 6) {
+                            $user->balance += $commission;
+                            $user->save();
+
+                            RefferedCommission::create([
+                                'reffered_by' => $user->id,
+                                'reffered_to' => $id,
+                                'commission_from' => $id,
+                                'amount' => $commission,
+                                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                            ]);
+
+                            sendMail('Commission', [
+                                'refer_user' => $user->username,
+                                'amount' => $commission,
+                                'currency' => $general->site_currency,
+                            ], $user);
+                        }
                     }
                 } else {
                     // Normal commission distribution for other levels
@@ -431,6 +428,7 @@ function colorText($haystack, $needle)
         $user = $user->refferedBy;
     }
 }
+
 
 
 
