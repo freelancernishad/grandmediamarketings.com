@@ -340,7 +340,7 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         // Check if the user's designation level is sufficient
         if ($userDesignation && $userDesignation->commission_level >= ($i + 1)) {
             // Check if the user's investment meets the minimum required for receiving the commission
-            if ($user->balance >= $userDesignation->designation->minimum_investment) {
+            if ($user->balance >= $userDesignation->designation->investment_threshold) {
                 // Calculate the commission
                 $commission = ($level->commision[$i] * $amount) / 100;
 
@@ -370,7 +370,7 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             } else {
                 \Log::info('User does not meet the minimum investment threshold', [
                     'user_id' => $user->id,
-                    'required_investment' => $userDesignation->designation->minimum_investment ?? 'N/A',
+                    'required_investment' => $userDesignation->designation->investment_threshold ?? 'N/A',
                     'current_balance' => $user->balance
                 ]);
             }
