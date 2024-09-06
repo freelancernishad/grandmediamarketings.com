@@ -385,41 +385,39 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             ]);
         }
 
+        // Move up the referral chain
         $user = $user->refferedBy;
     }
 
-    if ($accumulatedCommission > 0) {
-        $topLevelUser = UserDesignation::where('commission_level', 7)->first()->user ?? null;
+    // After loop, distribute any accumulated commission to the next eligible upline
+    if ($accumulatedCommission > 0 && $user) {
+        \Log::info('Distributing accumulated commission to the next eligible upline.', [
+            'next_upline_user_id' => $user->id,
+            'accumulated_commission' => $accumulatedCommission
+        ]);
 
-        if ($topLevelUser) {
-            \Log::info('Distributing accumulated commission to the top-level user.', [
-                'top_level_user_id' => $topLevelUser->id,
-                'accumulated_commission' => $accumulatedCommission
-            ]);
+        $user->balance += $accumulatedCommission;
+        $user->save();
 
-            $topLevelUser->balance += $accumulatedCommission;
-            $topLevelUser->save();
+        RefferedCommission::create([
+            'reffered_by' => $user->id,
+            'reffered_to' => $id,
+            'commission_from' => $id,
+            'amount' => $accumulatedCommission,
+            'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+        ]);
 
-            RefferedCommission::create([
-                'reffered_by' => $topLevelUser->id,
-                'reffered_to' => $id,
-                'commission_from' => $id,
-                'amount' => $accumulatedCommission,
-                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-            ]);
+        sendMail('Commission', [
+            'refer_user' => $user->username,
+            'amount' => $accumulatedCommission,
+            'currency' => $general->site_currency,
+        ], $user);
 
-            sendMail('Commission', [
-                'refer_user' => $topLevelUser->username,
-                'amount' => $accumulatedCommission,
-                'currency' => $general->site_currency,
-            ], $topLevelUser);
-
-            \Log::info('Accumulated commission successfully distributed to the top-level user.', [
-                'user_id' => $topLevelUser->id,
-                'commission' => $accumulatedCommission,
-                'new_balance' => $topLevelUser->balance
-            ]);
-        }
+        \Log::info('Accumulated commission successfully distributed to the next eligible upline.', [
+            'user_id' => $user->id,
+            'commission' => $accumulatedCommission,
+            'new_balance' => $user->balance
+        ]);
     }
 
     \Log::info('Referral commission distribution process completed.');
