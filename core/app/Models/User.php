@@ -174,6 +174,7 @@ class User extends Authenticatable
 
 
 
+
     /**
      * Get the user's current designation details.
      *

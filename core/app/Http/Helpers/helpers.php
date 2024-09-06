@@ -299,7 +299,6 @@ function colorText($haystack, $needle)
 
 function refferMoney($id, $user, $refferal_type, $amount, $plan)
 {
-    // Get the referral level information
     $level = Refferal::where('status', 1)
                      ->where('type', $refferal_type)
                      ->where('plan_id', $plan)
@@ -310,21 +309,19 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         return;
     }
 
-    // Count the number of levels in the referral plan
     $counter = count($level->commision);
-
-    // General settings
     $general = GeneralSetting::first();
-
-    // Initialize variables
     $accumulatedCommission = 0;
-    $userLevel = $user->designation->commission_level ?? 0;
+
+    // Get user's designation level using currentDesignation relationship
+    $userLevel = $user->currentDesignation->commission_level ?? 0;
 
     \Log::info('Starting referral commission distribution.', [
         'user_id' => $user->id,
         'referral_type' => $refferal_type,
         'amount' => $amount,
-        'plan_id' => $plan
+        'plan_id' => $plan,
+        'user_level' => $userLevel
     ]);
 
     for ($i = 0; $i < $counter; $i++) {
@@ -333,12 +330,8 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             break;
         }
 
-        // Calculate the commission for the current level
         $commission = ($level->commision[$i] * $amount) / 100;
-
-        // Check if the user at the current level is eligible to receive the commission
-        $currentUserDesignation = UserDesignation::where('user_id', $user->id)->first();
-        $currentUserLevel = $currentUserDesignation->commission_level ?? 0;
+        $currentUserLevel = $user->currentDesignation->commission_level ?? 0;
 
         if ($currentUserLevel >= ($i + 1)) {
             \Log::info('User meets the required designation level for commission.', [
@@ -348,7 +341,6 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'commission' => $commission
             ]);
 
-            // Distribute the commission
             $user->balance += $commission;
             $user->save();
 
@@ -372,7 +364,6 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'new_balance' => $user->balance
             ]);
 
-            // Reset accumulated commission after it's distributed
             $accumulatedCommission = 0;
         } else {
             \Log::info('User does not meet the required designation level for commission.', [
@@ -381,7 +372,6 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'current_level' => $currentUserLevel
             ]);
 
-            // Accumulate the commission for the missing designations
             $accumulatedCommission += $commission;
 
             \Log::info('Commission accumulated for the next eligible user.', [
@@ -390,13 +380,10 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             ]);
         }
 
-        // Move up the referral chain
         $user = $user->refferedBy;
     }
 
-    // If there is any accumulated commission left
     if ($accumulatedCommission > 0) {
-        // Ensure the user at the top designation level (e.g., STL) gets the accumulated commission
         $topLevelUser = UserDesignation::where('commission_level', 7)->first()->user ?? null;
 
         if ($topLevelUser) {
@@ -405,7 +392,6 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
                 'accumulated_commission' => $accumulatedCommission
             ]);
 
-            // Add the accumulated commission to the top-level user
             $topLevelUser->balance += $accumulatedCommission;
             $topLevelUser->save();
 
