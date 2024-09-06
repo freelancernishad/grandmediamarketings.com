@@ -309,6 +309,11 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         return;
     }
 
+    if (!$user) {
+        \Log::error('User object is null. Cannot proceed with referral commission distribution.');
+        return;
+    }
+
     $counter = count($level->commision);
     $general = GeneralSetting::first();
     $accumulatedCommission = 0;
@@ -419,6 +424,7 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
 
     \Log::info('Referral commission distribution process completed.');
 }
+
 
 
 
