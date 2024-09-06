@@ -317,62 +317,60 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
     $counter = count($level->commision);
     $general = GeneralSetting::first();
     $accumulatedCommission = 0;
-
-    // Get user's designation level using currentDesignation relationship
-    $userLevel = $user->currentDesignation->commission_level ?? 0;
+    $currentUser = $user; // Start with the current user (User 2, direct referrer)
 
     \Log::info('Starting referral commission distribution.', [
         'user_id' => $user->id,
         'referral_type' => $refferal_type,
         'amount' => $amount,
-        'plan_id' => $plan,
-        'user_level' => $userLevel
+        'plan_id' => $plan
     ]);
 
     for ($i = 0; $i < $counter; $i++) {
-        if (!$user) {
+        if (!$currentUser) {
             \Log::info('Referral chain ended. No more referrers available.');
             break;
         }
 
         $commission = ($level->commision[$i] * $amount) / 100;
-        $currentUserLevel = $user->currentDesignation->commission_level ?? 0;
+        $currentUserLevel = $currentUser->currentDesignation->commission_level ?? 0;
 
+        // Distribute commission if the user's level matches or exceeds the required level
         if ($currentUserLevel >= ($i + 1)) {
             \Log::info('User meets the required designation level for commission.', [
-                'user_id' => $user->id,
+                'user_id' => $currentUser->id,
                 'designation_level' => $currentUserLevel,
                 'required_level' => $i + 1,
                 'commission' => $commission
             ]);
 
-            $user->balance += $commission;
-            $user->save();
+            $currentUser->balance += $accumulatedCommission + $commission;
+            $currentUser->save();
 
             RefferedCommission::create([
-                'reffered_by' => $user->id,
+                'reffered_by' => $currentUser->id,
                 'reffered_to' => $id,
                 'commission_from' => $id,
-                'amount' => $commission,
+                'amount' => $accumulatedCommission + $commission,
                 'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
             ]);
 
             sendMail('Commission', [
-                'refer_user' => $user->username,
-                'amount' => $commission,
+                'refer_user' => $currentUser->username,
+                'amount' => $accumulatedCommission + $commission,
                 'currency' => $general->site_currency,
-            ], $user);
+            ], $currentUser);
 
             \Log::info('Commission distributed successfully.', [
-                'user_id' => $user->id,
-                'commission' => $commission,
-                'new_balance' => $user->balance
+                'user_id' => $currentUser->id,
+                'commission' => $accumulatedCommission + $commission,
+                'new_balance' => $currentUser->balance
             ]);
 
-            $accumulatedCommission = 0;
+            $accumulatedCommission = 0; // Reset accumulated commission
         } else {
             \Log::info('User does not meet the required designation level for commission.', [
-                'user_id' => $user->id,
+                'user_id' => $currentUser->id,
                 'required_level' => $i + 1,
                 'current_level' => $currentUserLevel
             ]);
@@ -380,27 +378,27 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
             $accumulatedCommission += $commission;
 
             \Log::info('Commission accumulated for the next eligible user.', [
-                'user_id' => $user->id,
+                'user_id' => $currentUser->id,
                 'accumulated_commission' => $accumulatedCommission
             ]);
         }
 
         // Move up the referral chain
-        $user = $user->refferedBy;
+        $currentUser = $currentUser->refferedBy;
     }
 
     // After loop, distribute any accumulated commission to the next eligible upline
-    if ($accumulatedCommission > 0 && $user) {
+    if ($accumulatedCommission > 0 && $currentUser) {
         \Log::info('Distributing accumulated commission to the next eligible upline.', [
-            'next_upline_user_id' => $user->id,
+            'next_upline_user_id' => $currentUser->id,
             'accumulated_commission' => $accumulatedCommission
         ]);
 
-        $user->balance += $accumulatedCommission;
-        $user->save();
+        $currentUser->balance += $accumulatedCommission;
+        $currentUser->save();
 
         RefferedCommission::create([
-            'reffered_by' => $user->id,
+            'reffered_by' => $currentUser->id,
             'reffered_to' => $id,
             'commission_from' => $id,
             'amount' => $accumulatedCommission,
@@ -408,20 +406,23 @@ function refferMoney($id, $user, $refferal_type, $amount, $plan)
         ]);
 
         sendMail('Commission', [
-            'refer_user' => $user->username,
+            'refer_user' => $currentUser->username,
             'amount' => $accumulatedCommission,
             'currency' => $general->site_currency,
-        ], $user);
+        ], $currentUser);
 
         \Log::info('Accumulated commission successfully distributed to the next eligible upline.', [
-            'user_id' => $user->id,
+            'user_id' => $currentUser->id,
             'commission' => $accumulatedCommission,
-            'new_balance' => $user->balance
+            'new_balance' => $currentUser->balance
         ]);
     }
 
     \Log::info('Referral commission distribution process completed.');
 }
+
+
+
 
 
 
