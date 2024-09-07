@@ -307,6 +307,7 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
             'plan_id' => $plan_id
         ]);
         return;
+
     }
 
     // Start logging the beginning of the process
