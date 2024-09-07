@@ -56,7 +56,7 @@
                         </div>
 
 
-                        
+
                         <div class="single-slide">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
@@ -70,9 +70,9 @@
                         </div>
 
 
-                      
 
-     
+
+
 
 
                         <div class="single-slide">
@@ -99,7 +99,7 @@
                         </div>
 
 
-                        
+
                         <div class="single-slide">
                             <div class="d-box-three gr-bg-7">
                                 <div class="icon">
@@ -112,7 +112,7 @@
                             </div>
                         </div>
 
-  
+
                         <div class="single-slide">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
@@ -158,7 +158,7 @@
 
                 <div class="col-xl-4 col-lg-6 d-lg-block d-none">
                     <div class="row g-sm-4 g-3">
-                
+
                         <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-1">
                                 <div class="icon">
@@ -171,7 +171,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-3">
                                 <div class="icon">
@@ -184,7 +184,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="col-lg-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
@@ -197,13 +197,13 @@
                                 </div>
                             </div>
                         </div>
-                
+
                     </div>
                 </div>
-                
+
                 <div class="col-xl-4 d-lg-block d-none">
                     <div class="row g-sm-4 g-3">
-                
+
                         <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-2">
                                 <div class="icon">
@@ -216,7 +216,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-4">
                                 <div class="icon">
@@ -231,7 +231,7 @@
                                 </div>
                             </div>
                         </div>
-                
+
                         <div class="col-xl-12 col-6 mb-3 mb-sm-0">
                             <div class="d-box-three gr-bg-3">
                                 <div class="icon">
@@ -246,10 +246,10 @@
                                 </div>
                             </div>
                         </div>
-                
+
                     </div>
                 </div>
-                
+
 
 
 
@@ -399,7 +399,7 @@
             ?>
         </div>
 
-        <div class="row">
+        <div class="row" style="display: none">
             <div class="col-md-12">
                 <div class="site-card">
                     <div class="card-header">
@@ -618,7 +618,7 @@
                 this.select();
             });
 
-            
+
         $('.mobile-card-slider').slick({
             slidesToShow: 1,
             slidesToScroll: 1,
