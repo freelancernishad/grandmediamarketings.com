@@ -298,6 +298,7 @@ function colorText($haystack, $needle)
     return str_replace($needle, $replace, $haystack);
 }
 
+
 function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
 {
     if (!$user1) {
@@ -307,7 +308,6 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
             'plan_id' => $plan_id
         ]);
         return;
-
     }
 
     // Start logging the beginning of the process
@@ -360,7 +360,7 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
         return;
     }
 
-    // Assume $referral->level and $referral->commision are already arrays
+    // Assume $referral->level and $referral->commision are arrays
     $referralLevels = $referral->level;
     $referralCommissions = $referral->commision;
 
@@ -376,9 +376,12 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
         'levels_count' => count($referralLevels)
     ]);
 
-    // Iterate through each level and commission
+    // Create an array to hold commissions for users by level
+    $commissions = [];
+
+    // Process commissions for each level
     foreach ($referralLevels as $index => $levelName) {
-        $commissionLevel = $index + 1; // Assuming levels are ordered by index
+        $commissionLevel = $index + 1; // Levels are indexed from 1
         $commissionPercentage = $referralCommissions[$index];
 
         Log::info('Processing commission level.', [
@@ -386,51 +389,51 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
             'commission_percentage' => $commissionPercentage
         ]);
 
+        $commission = ($commissionPercentage * $amount) / 100;
+
+        // Determine which user(s) will receive the commission for this level
         if ($user2Level >= $commissionLevel) {
-            // User 2 gets the commission for levels they are eligible for
-            $commission = ($commissionPercentage * $amount) / 100;
-
-            $referredUser->balance += $commission;
-            $referredUser->save();
-
-            RefferedCommission::create([
-                'reffered_by' => $referredUser->id,
-                'reffered_to' => $user1->id,
-                'commission_from' => $referredUser->id,
-                'amount' => $commission,
-                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-            ]);
-
-            Log::info('Commission distributed to User 2.', [
-                'user2_id' => $referredUser->id,
-                'commission_amount' => $commission,
-                'level' => $commissionLevel
-            ]);
-        } elseif ($user2Level < $commissionLevel && $user1Level >= $commissionLevel) {
-            // User 1 gets the commission for the remaining levels
-            $commission = ($commissionPercentage * $amount) / 100;
-
-            $user1->balance += $commission;
-            $user1->save();
-
-            RefferedCommission::create([
-                'reffered_by' => $user1->id,
-                'reffered_to' => $referredUser->id,
-                'commission_from' => $referredUser->id,
-                'amount' => $commission,
-                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-            ]);
-
-            Log::info('Commission distributed to User 1.', [
-                'user1_id' => $user1->id,
-                'commission_amount' => $commission,
-                'level' => $commissionLevel
-            ]);
+            // User 2 gets commission for levels up to their designation
+            $commissions['user2'][] = $commission;
+        } else if ($user1Level >= $commissionLevel) {
+            // User 1 gets commission for levels up to their designation
+            $commissions['user1'][] = $commission;
         } else {
-            Log::info('No commission distributed for this level.', [
-                'commission_level' => $commissionLevel,
-                'user2_level' => $user2Level,
-                'user1_level' => $user1Level
+            // If neither user is eligible, find a higher level user to receive the commission
+            if ($user1Level > $user2Level) {
+                $commissions['user1'][] = $commission;
+            } else {
+                // In case you have more users or a fallback strategy, adjust here
+                Log::info('No eligible user found for level.', [
+                    'commission_level' => $commissionLevel
+                ]);
+            }
+        }
+    }
+
+    // Distribute commissions to users
+    foreach ($commissions as $userKey => $userCommissions) {
+        $user = ($userKey === 'user1') ? $user1 : $referredUser;
+        $totalCommission = array_sum($userCommissions);
+
+        if ($totalCommission > 0) {
+            $user->balance += $totalCommission;
+            $user->save();
+
+            // Record the commissions
+            foreach ($userCommissions as $commission) {
+                RefferedCommission::create([
+                    'reffered_by' => $user->id,
+                    'reffered_to' => $userKey === 'user1' ? $referredUser->id : $user1->id,
+                    'amount' => $commission,
+                    'commission_from' => $user->id,
+                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+                ]);
+            }
+
+            Log::info('Commission distributed to ' . $userKey, [
+                'user_id' => $user->id,
+                'total_commission_amount' => $totalCommission
             ]);
         }
     }
@@ -440,6 +443,8 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
         'user2_id' => $referredUser->id
     ]);
 }
+
+
 
 
 
