@@ -376,10 +376,7 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
         'levels_count' => count($referralLevels)
     ]);
 
-    // Create an array to hold commissions for users by level
-    $commissions = [];
-
-    // Process commissions for each level
+    // Process commissions based on levels
     foreach ($referralLevels as $index => $levelName) {
         $commissionLevel = $index + 1; // Levels are indexed from 1
         $commissionPercentage = $referralCommissions[$index];
@@ -389,51 +386,45 @@ function refferMoney($user2_id, $user1, $refferal_type, $amount, $plan_id)
             'commission_percentage' => $commissionPercentage
         ]);
 
-        $commission = ($commissionPercentage * $amount) / 100;
-
-        // Determine which user(s) will receive the commission for this level
+        // Commission for user2 if eligible
         if ($user2Level >= $commissionLevel) {
-            // User 2 gets commission for levels up to their designation
-            $commissions['user2'][] = $commission;
-        } else if ($user1Level >= $commissionLevel) {
-            // User 1 gets commission for levels up to their designation
-            $commissions['user1'][] = $commission;
-        } else {
-            // If neither user is eligible, find a higher level user to receive the commission
-            if ($user1Level > $user2Level) {
-                $commissions['user1'][] = $commission;
-            } else {
-                // In case you have more users or a fallback strategy, adjust here
-                Log::info('No eligible user found for level.', [
-                    'commission_level' => $commissionLevel
-                ]);
-            }
+            $commission = ($commissionPercentage * $amount) / 100;
+            $referredUser->balance += $commission;
+            $referredUser->save();
+
+            RefferedCommission::create([
+                'reffered_by' => $referredUser->id, // Updated column name
+                'reffered_to' => $user1->id, // Updated column name
+                'amount' => $commission,
+                'commission_from' => $referredUser->id,
+                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+            ]);
+
+            Log::info('Commission distributed to User 2.', [
+                'user2_id' => $referredUser->id,
+                'commission_amount' => $commission,
+                'level' => $commissionLevel
+            ]);
         }
-    }
 
-    // Distribute commissions to users
-    foreach ($commissions as $userKey => $userCommissions) {
-        $user = ($userKey === 'user1') ? $user1 : $referredUser;
-        $totalCommission = array_sum($userCommissions);
+        // Commission for user1 if user2 is not eligible
+        if ($user2Level < $commissionLevel && $user1Level >= $commissionLevel) {
+            $commission = ($commissionPercentage * $amount) / 100;
+            $user1->balance += $commission;
+            $user1->save();
 
-        if ($totalCommission > 0) {
-            $user->balance += $totalCommission;
-            $user->save();
+            RefferedCommission::create([
+                'reffered_by' => $user1->id, // Updated column name
+                'reffered_to' => $referredUser->id, // Updated column name
+                'amount' => $commission,
+                'commission_from' => $referredUser->id,
+                'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
+            ]);
 
-            // Record the commissions
-            foreach ($userCommissions as $commission) {
-                RefferedCommission::create([
-                    'reffered_by' => $user->id,
-                    'reffered_to' => $userKey === 'user1' ? $referredUser->id : $user1->id,
-                    'amount' => $commission,
-                    'commission_from' => $user->id,
-                    'purpouse' => $refferal_type === 'invest' ? 'Return invest commission' : 'Return Interest Commission'
-                ]);
-            }
-
-            Log::info('Commission distributed to ' . $userKey, [
-                'user_id' => $user->id,
-                'total_commission_amount' => $totalCommission
+            Log::info('Commission distributed to User 1.', [
+                'user1_id' => $user1->id,
+                'commission_amount' => $commission,
+                'level' => $commissionLevel
             ]);
         }
     }
